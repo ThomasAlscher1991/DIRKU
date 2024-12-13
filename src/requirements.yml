@@ -1,0 +1,24 @@
+name: DIRKU
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pip
+  - tqdm
+  - pyvista
+  - wildmeshing
+  - numpy
+  - matplotlib
+  - scikit-fmm
+  - setuptools
+  - numpy-stl
+  - scikit-image
+  - pip:
+    - torch
+    - torchvision
+    - torchaudio
+    - libigl
+    - pymeshlab
+    - shapely
+

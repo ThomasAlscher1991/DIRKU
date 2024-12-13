@@ -1,0 +1,10 @@
+collisionDetection
+geometricTransformations
+interpolation
+meshing
+numericalIntegration
+optimization
+postprocessing
+regularization
+similarityMeasure
+utils
