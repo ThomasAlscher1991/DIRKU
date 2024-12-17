@@ -122,16 +122,17 @@ def deformable_ccdir(device, workingDirectory, segmentTuple,simCoef=1,lr=1,colCo
         ###CCDIR
         origDis1 = points1[pointMask1 == 0][selfColSel1 == 1].clone() * 0
         origDis2 = points2[pointMask2 == 0][selfColSel2 == 1].clone() * 0
+        #(pts,sdf,interpolator,simplices,verticesUndeformed,coef,device,pointsMask,pointsMaskLabel,unmaskedDis,vertMask,vertMaskLabel)
 
-        sc1 = collisionDetection.selfintersectionDetection(points1, sdf, intensityInterpolator, None, simp,
+        sc1 = collisionDetection.selfintersectionDetection(points1, sdf, intensityInterpolator,  simp,
                                                            verticesOriginal, colCoef,
                                                            device, pointsMask=pointMask1, pointsMaskLabel=0,
-                                                           unmaskedDis=origDis2, vertMask=selfColSel1)
-        sc2 = collisionDetection.selfintersectionDetection(points2, sdf, intensityInterpolator, None, simp,
+                                                           unmaskedDis=origDis2, vertMask=selfColSel1,vertMaskLabel=1)
+        sc2 = collisionDetection.selfintersectionDetection(points2, sdf, intensityInterpolator,  simp,
                                                            verticesOriginal, colCoef,
                                                            device, pointsMask=pointMask2, pointsMaskLabel=0,
                                                            unmaskedDis=origDis1,
-                                                           vertMask=selfColSel2)
+                                                           vertMask=selfColSel2,vertMaskLabel=1)
         sc2.siPartner = sc1
         sc1.siPartner = sc2
 
