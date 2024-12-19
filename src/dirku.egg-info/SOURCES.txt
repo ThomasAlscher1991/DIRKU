@@ -47,5 +47,3 @@ dirku/similarityMeasure/similarityMeasure.py
 dirku/utils/__init__.py
 dirku/utils/points.py
 dirku/utils/sdf.py
-tests/test_intersection2D.py
-tests/test_selfintersection2D.py

@@ -1,19 +1,26 @@
 import torch
-class similarityMeasure():
+from typing import Optional, Type, Union, Tuple
+from torch import Tensor
+from ..interpolation import *
+class similarityMeasure:
     """ Template class for image similarity measures.
-            :param pts: points to be displaced
-            :type pts: torch.tensor
-            :param val: image intensities at eval points in moving image
-            :type val: torch.tensor
-            :param data: reference or fixed image
-            :type data: torch.tensor
-            :param interpolatorIntensity: interpolation method used for image intensity interpolation in raster images.
-            :type interpolatorIntensity: interpolation class
-            :param coef: weight for similarity term
-            :type coef: float
+    :param pts: points representing the deformable object
+    :type pts: torch.Tensor
+    :param intensities: intensities at material configuration
+    :type intensities: torch.Tensor
+    :param data: target intensity data
+    :type data: torch.Tensor
+    :param interpolatorIntensity: interpolator for pts locations after displacement in target intensity data
+    :type interpolatorIntensity: nearest, linear, or cubic interpolation class
+    :param coef: coefficient applied to the measure
+    :type coef: float
+    :param pointsMask: a mask for pts if only a subset of pts needs to be measured
+    :type pointsMask: torch.Tensor
+    :param pointsMaskLabel: the mask label for pointsMask that needs to be measured
+    :type pointsMaskLabel: int
     """
-    def __init__(self,pts,intensities,data,interpolatorIntensity,coef=1,pointsMask=None,pointsMaskLabel=None):
-        """Constructor method"""
+    def __init__(self,pts: Tensor,intensities: Tensor,data: Tensor,interpolatorIntensity: Union[nearest,linear,cubic],coef: float=1,pointsMask: Optional[Tensor] = None,pointsMaskLabel: Optional[Tensor] = None):
+        """Constructor method."""
         self.intensities=intensities
         self.data=data
         self.coef=coef
@@ -21,16 +28,16 @@ class similarityMeasure():
         self.pts=pts
         self.pointsMask=pointsMask
         self.pointsMaskLabel=pointsMaskLabel
-    def measure(self,newIntensities,intensities):
-        """Method populated by children"""
+    def measure(self,newIntensities: Tensor,intensities: Tensor)->Tensor:
+        """Method populated by children."""
         pass
-    def __call__(self,dis=0,**kwargs):
+    def __call__(self,dis: Tensor=0,**kwargs)->Tensor:
         """ Displaces point, feeds the measure method the coordinates of displaced points and returns the similarity between
-            intensities at original coordinates vs displaced coordinates.
+            intensities at material coordinates vs spatial coordinates.
                 :param dis: points displacements
-                :type dis: torch.tensor
-                :return: similiarity measure.
-                :rtype: float
+                :type dis: torch.Tensor
+                :return: similiarity measure
+                :rtype: torch.Tensor
         """
         if self.pointsMask is not None:
             dis=dis[self.pointsMask==self.pointsMaskLabel]
@@ -41,39 +48,16 @@ class similarityMeasure():
             newIntensities,_,_=self.interpolatorIntensity(self.pts+dis,self.data)
         return self.measure(newIntensities,self.intensities)*self.coef
 
-
-class landmarkMatching():
-    """ Child class for normalized cross correlation."""
-    def __init__(self,pointsMoving, pointsFixed, ratio, coef=1):
-        self.pointsMoving=pointsMoving
-        self.pointsFixed=pointsFixed
-        self.coef=coef
-        self.ratio=ratio
-
-    def __call__(self,dis=0,**kwargs):
-        """ Displaces point, feeds the measure method the coordinates of displaced points and returns the similarity between
-            intensities at original coordinates vs displaced coordinates.
-                :param dis: points displacements
-                :type dis: torch.tensor
-                :return: similiarity measure.
-                :rtype: float
-        """
-        pointsMoved=self.pointsMoving+dis
-        diff=(self.pointsFixed-pointsMoved)*self.ratio
-        return self.coef*(torch.sum(torch.norm(diff,dim=1)))
-
-
-
 class ncc(similarityMeasure):
     """ Child class for normalized cross correlation."""
-    def measure(self,newIntensities,intensities):
+    def measure(self,newIntensities: Tensor,intensities: Tensor)->Tensor:
         """Computes normalized cross correlation.
-            :param val_new: intensities at displaced points in fixed image
-            :type val_new: torch.tensor
-            :param val: intensities at original points in moving image
-            :type val: torch.tensor
+            :param newIntensities: intensities at spatial points in fixed image
+            :type newIntensities: torch.Tensor
+            :param val: intensities at material points in moving image
+            :type val: torch.Tensor
             :return: similiarity measure.
-            :rtype: float
+            :rtype: torch.Tensor
         """
         pair = torch.stack([newIntensities.flatten(), intensities.flatten()], dim=1)
         mx = torch.mean(pair, dim=0)
@@ -84,14 +68,14 @@ class ncc(similarityMeasure):
 class ssd(similarityMeasure):
     """ Child class for sum of squared differences.
     """
-    def measure(self,newIntensities,intensities):
-        """Computes sum of squared distances.
-            :param val_new: intensities at displaced points in fixed image
-            :type val_new: torch.tensor
-            :param val: intensities at original points in moving image
-            :type val: torch.tensor
+    def measure(self,newIntensities: Tensor,intensities: Tensor)->Tensor:
+        """Computes sum of squared differences.
+            :param newIntensities: intensities at spatial points in fixed image
+            :type newIntensities: torch.Tensor
+            :param val: intensities at material points in moving image
+            :type val: torch.Tensor
             :return: similiarity measure.
-            :rtype: float
+            :rtype: torch.Tensor
         """
         pair = torch.stack([newIntensities.flatten(), intensities.flatten()], dim=1)
         mx = torch.sum((pair[:, 0] - pair[:, 1]) ** 2)
@@ -103,17 +87,17 @@ class ssd(similarityMeasure):
 class nmi(similarityMeasure):
     """ Child class for mutual information.
     """
-    def Histogram2D(self, vals):
+    def Histogram2D(self, vals: Tensor)->Tuple[Tensor,Tensor,Tensor]:
         """ Creates 3 histograms, 1 for the joint probability of intensity values and 2 for separate probabilities.
             intensities at original coordinates vs displaced coordinates.
-                :param vals: combined intensities
-                :type vals: torch.tensor
+                :param vals: combined intensities at material and spatial coordinates
+                :type vals: torch.Tensor
                 :return hist: joint probability
-                :rtype hist: torch.tensor
+                :rtype hist: torch.Tensor
                 :return hist_a: single probability
-                :rtype hist_a: torch.tensor
+                :rtype hist_a: torch.Tensor
                 :return hist_b: single probability
-                :rtype hist_b: torch.tensor
+                :rtype hist_b: torch.Tensor
         """
         rangeh = torch.ceil(vals.max() - vals.min()).long()
         t_idx = vals.floor().long()
@@ -152,14 +136,14 @@ class nmi(similarityMeasure):
         hist_b = hist_b + torch.finfo(torch.float32).eps
         return hist, hist_a, hist_b
 
-    def measure(self, newIntensities,intensities):
+    def measure(self,newIntensities: Tensor,intensities: Tensor)->Tensor:
         """Computes normalized mutual information.
-            :param val_new: intensities at displaced points in fixed image
-            :type val_new: torch.tensor
-            :param val: intensities at original points in moving image
-            :type val: torch.tensor
+            :param newIntensities: intensities at spatial points in fixed image
+            :type newIntensities: torch.Tensor
+            :param val: intensities at material points in moving image
+            :type val: torch.Tensor
             :return: similiarity measure.
-            :rtype: float
+            :rtype: torch.Tensor
         """
         self.device=newIntensities.device
         x = torch.stack([newIntensities.flatten(), intensities.flatten()], dim=1)

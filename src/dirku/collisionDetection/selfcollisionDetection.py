@@ -1,7 +1,7 @@
 import torch
-from typing import Optional, Type, Union
+from typing import Optional, Type, Union, Tuple
 from torch import Tensor
-from interpolation import *
+from ..interpolation import *
 
 class selfintersectionDetection2D:
     """See selfintersectionDetection docs."""
@@ -64,7 +64,7 @@ class selfintersectionDetection2D:
         coordinates[:,2:4]=vertexCoords[self.simplices[intersectedSimplices.long()][:,1].long()]
         coordinates[:,4:]=vertexCoords[self.simplices[intersectedSimplices.long()][:,2].long()]
         return coordinates
-    def cartesianToBarycentric2D(self,nodeCoordinates, p)->Union[Tensor,Tensor,Tensor]:
+    def cartesianToBarycentric2D(self,nodeCoordinates, p)->Tuple[Tensor,Tensor,Tensor]:
         """Transformation from cartesian to barycentric coordinates in 2D.
             :param nodeCoordinates: cartesian coordinates of simplex nodes
             :type nodeCoordinates: torch.Tensor
@@ -100,7 +100,7 @@ class selfintersectionDetection2D:
         e1, e2, e3 = self.cartesianToBarycentric2D(coordinatesDeformed, points)
         resamp = self.barycentricToCartesian2D(coordinatesOrig, e1, e2, e3)
         inter_sdf, _, _ = self.intP(resamp, self.sdf)
-        return torch.sum(inter_sdf**2, dim=1)
+        return torch.sum(torch.sqrt(inter_sdf** 2))
     def intersectionDetection2D(self,nodesDeformed: Tensor, simplices: Tensor)->Tensor:
         """Computes whether a point lies inside a simplex after displacement. Points are assumed to be nodes of simplices, so hits with their own simplex are ignored. In 2D.
             :param nodesDeformed: displaced vertices
@@ -328,7 +328,7 @@ class selfintersectionDetection3D():
         coordinates[:, 6:9] = vertexCoords[self.simplices[intersectedSimplices.long()][:, 2].long()]
         coordinates[:, 9:] = vertexCoords[self.simplices[intersectedSimplices.long()][:, 3].long()]
         return coordinates
-    def cartesianToBarycentric3D(self,nodeCoordinates: Tensor, p: Tensor)->Union[Tensor,Tensor,Tensor,Tensor]:
+    def cartesianToBarycentric3D(self,nodeCoordinates: Tensor, p: Tensor)->Tuple[Tensor,Tensor,Tensor,Tensor]:
         """Transformation from cartesian to barycentric coordinates in 3D.
             :param nodeCoordinates: cartesian coordinates of simplex nodes
             :type nodeCoordinates: torch.Tensor
@@ -390,7 +390,7 @@ class selfintersectionDetection3D():
         e1, e2, e3, e4 = self.cartesianToBarycentric3D(coordinatesDeformed, points)
         resamp = self.barycentricToCartesian3D(coordinatesOrig, e1, e2, e3, e4)
         inter_sdf,_,_  = self.intP (resamp, self.sdf)
-        return torch.sum(inter_sdf**2)
+        return torch.sum(torch.sqrt(inter_sdf** 2))
     def intersectionsNodes(self,nodesDeformed: Tensor)->Tensor:
         """Calculates the selfintersection loss in 3D.
             :param x: deformation parameters

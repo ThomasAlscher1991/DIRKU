@@ -5,9 +5,28 @@ import math
 import numpy as np
 import skfmm
 from src.dirku import interpolation
+from typing import Optional, Type, Union, Tuple
+from torch import Tensor
 
-def getEvaluationPoints(device,image,mask=None,maskLabel=None,dilation=None,exteriorLayers=None,percentageOfPoints=None,random=False):
-    #numberOfPointsPercent from 0 to1
+def getEvaluationPoints(device: str,image: Tensor,mask: Optional[Tensor]=None,maskLabel: Optional[Tensor]=None,dilation: Optional[int]=None,exteriorLayers: Optional[int]=None,percentageOfPoints: Optional[float]=None,random: Optional[bool]=None)->Tensor:
+    """Returns a set of evaluation points representing the domains to be registered.
+    :param device: computation device, see torch docs
+    :type device: str
+    :param image: moving image of the registration scene
+    :type image: torch.Tensor
+    :param mask: if only a certain subdomain is registered this mask of moving image is needed
+    :type mask: torch.Tensor
+    :param maskLabel: if only a certain subdomain is registered the according label is needed
+    :type maskLabel: torch.Tensor
+    :param dilation: dilating the mask for int steps
+    :type dilation: int
+    :param exteriorLayers: only this number of exterior layer of the subdomain are considered
+    :type exteriorLayers: int
+    :param percentageOfPoints: percentage of points selected from the domain (from 0 to 1)
+    :type percentageOfPoints: float
+    :param random: switch to randomly select the percentage of points
+    :type random: bool
+    """
     indices = np.indices(image.cpu()[0].size())
     pts = np.empty((np.prod(image.cpu().size()), len(image[0].cpu().size())))
     for i, slide in enumerate(indices):
@@ -36,56 +55,11 @@ def getEvaluationPoints(device,image,mask=None,maskLabel=None,dilation=None,exte
             pts = pts[::skip]
     return pts
 
-
-
-def getEvalPointsInt(image,numberOfPoints=None,mask=None,maskLabel=None,dilation=None):
-    """Creates a regular grid of evaluation points in the image domain.
-        :param image: image
-        :type image: torch.tensor
-        :param numberOfPoints: approximate number of evaluation points returned
-        :type numberOfPoints: int
-        :param mask: if evaluation points are only required for a segmented image area, supply segmentation mask
-        :type mask: torch.tensor
-        :param maskLabel: segmentation label to be considered for evaluation points
-        :type maskLabel: torch.tensor
-        :return pts: coordinates of evaluation points (#points, dim)
-        :rtype pts: torch.tensor"""
-    device=image.device
-    if len(image.size())==4:
-        s_x, s_y,s_z = (torch.meshgrid([torch.arange(0, image.size()[1], 1), torch.arange(0, image.size()[2], 1), torch.arange(0, image.size()[3], 1)]))
-        pts = (torch.stack([s_x.flatten(), s_y.flatten(), s_z.flatten()], dim=1).float()).to(device=device)
-        if maskLabel is not None:
-            if dilation is not None:
-                mask=torch.where(mask==maskLabel,1,0)
-                mask=torch.from_numpy(ndimage.binary_dilation(mask.cpu(),iterations=dilation)).to(device=device)
-                pts = pts[mask.flatten() == 1]
-            else:
-                pts = pts[mask.flatten() == maskLabel]
-        if numberOfPoints is not None:
-            skip = getSkipInterval(pts, numberOfPoints)
-            pts = pts[::skip]
-    elif len(image.size())==3:
-        s_x, s_y = (torch.meshgrid([torch.arange(0, image.size()[1], 1), torch.arange(0, image.size()[2], 1)]))
-        pts = (torch.stack([s_x.flatten(), s_y.flatten()], dim=1).float()).to(device=device)
-        if maskLabel is not None:
-            if dilation is not None:
-                mask = torch.where(mask == maskLabel, 1, 0)
-                mask=torch.from_numpy(ndimage.binary_dilation(mask.cpu(),iterations=dilation)).to(device=device)
-                pts = pts[mask.flatten() == 1]
-            else:
-                pts = pts[mask.flatten() == maskLabel]
-        if numberOfPoints is not None:
-            skip=getSkipInterval(pts,numberOfPoints)
-            pts=pts[::skip]
-    else:
-        print("wrong dimension")
-    return pts.to(device=device)
-
-def getSkipInterval(pts,number):
-    """Calculates the neccessary interval between evaluation points to achieve the required amount.
-        :param pts: coordinates (#points, dim) of domain points
-        :type pts: torch.tensor
-        :param number: approximate number of evaluation points returned
+def getSkipInterval(pts: Tensor,number: int)->int:
+    """Calculates the necessary interval between evaluation points to achieve the required amount.
+        :param pts: all points
+        :type pts: torch.Tensor
+        :param number: approximate number of evaluation points required
         :type number: int
         :return skip: interval between points
         :rtype skip: int"""
@@ -96,16 +70,16 @@ def getSkipInterval(pts,number):
     else:
         return skip
 
-def getGridPoints(movingImage,scale,timesteps=1):
-    """Returns the data point grid for velocity field interpolation.
+def getGridPoints(movingImage: Tensor,scale: Tensor,timesteps: int=1)->Tensor:
+    """Returns the control point grid for velocity field interpolation.
         :param movingImage: moving image (1,dim1,dim2 (,dim3))
-        :type movingImage: torch.tensor
-        :param scale: tensor with stepsize between two consecutive data points in each dimension in pixel
-        :type scale: torch.tensor
-        :param timesteps: time steps into which the t=[0;1] is divided
+        :type movingImage: torch.Tensor
+        :param scale: tensor with stepsize between two consecutive control points in each dimension in pixel
+        :type scale: torch.Tensor
+        :param timesteps: time steps into which the interval t=[0;1] is divided
         :type timesteps: int
         :return skip: control point grid
-        :rtype skip: torch.tensor"""
+        :rtype skip: torch.Tensor"""
     device=movingImage.device
     if scale.size(0)==2:
         x = torch.zeros((timesteps, 2, int(movingImage.size(1) / scale[0]) + 1, int(movingImage.size(2) / scale[1]) + 1))
@@ -117,125 +91,20 @@ def getGridPoints(movingImage,scale,timesteps=1):
         raise Exception("wrong dimension: scale & moving image")
 
 
-def getEvalPointsExterior(image,numberOfPoints=None,mask=None,maskLabel=None,dilation=None,layers=1):
-    """Creates a regular grid of evaluation points in the image domain.
-        :param image: image
-        :type image: torch.tensor
-        :param numberOfPoints: approximate number of evaluation points returned
-        :type numberOfPoints: int
-        :param mask: if evaluation points are only required for a segmented image area, supply segmentation mask
-        :type mask: torch.tensor
-        :param maskLabel: segmentation label to be considered for evaluation points
-        :type maskLabel: torch.tensor
-        :return pts: coordinates of evaluation points (#points, dim)
-        :rtype pts: torch.tensor"""
-    device=image.device
-    if len(image.size())==4:
-        s_x, s_y,s_z = (torch.meshgrid([torch.arange(0, image.size()[1], 1), torch.arange(0, image.size()[2], 1), torch.arange(0, image.size()[3], 1)]))
-        pts = (torch.stack([s_x.flatten(), s_y.flatten(), s_z.flatten()], dim=1).float()).to(device=device)
-        if maskLabel is not None:
-            if dilation is not None:
-                mask=torch.where(mask==maskLabel,1,0)
-                mask=torch.from_numpy(ndimage.binary_dilation(mask.cpu(),iterations=dilation)).to(device=device).int()
-                exteriorLayer = torch.unsqueeze(torch.from_numpy(
-                    ndimage.binary_erosion(mask[0].cpu().numpy().astype(np.bool_), iterations=layers)).to(
-                    device=device).int(), dim=0)
-                mask = mask - exteriorLayer
-                pts = pts[mask.flatten() == 1]
-            else:
-                exteriorLayer = torch.unsqueeze(torch.from_numpy(
-                    ndimage.binary_erosion(mask[0].cpu().numpy().astype(np.bool_), iterations=layers)).to(
-                    device=device).int(), dim=0)
-                mask = mask - exteriorLayer
-                pts = pts[mask.flatten() == maskLabel]
-        if numberOfPoints is not None:
-            skip = getSkipInterval(pts, numberOfPoints)
-            pts = pts[::skip]
-    elif len(image.size())==3:
-        s_x, s_y = (torch.meshgrid([torch.arange(0, image.size()[1], 1), torch.arange(0, image.size()[2], 1)]))
-        pts = (torch.stack([s_x.flatten(), s_y.flatten()], dim=1).float()).to(device=device)
-        if maskLabel is not None:
-            if dilation is not None:
-                mask = torch.where(mask == maskLabel, 1, 0)
-                mask=torch.from_numpy(ndimage.binary_dilation(mask.cpu().numpy(),iterations=dilation)).to(device=device).int()
-                exteriorLayer=torch.unsqueeze(torch.from_numpy(ndimage.binary_erosion(mask[0].cpu().numpy().astype(np.bool_) ,iterations=layers)).to(device=device).int(),dim=0)
-                mask=mask-exteriorLayer
-                pts = pts[mask.flatten() == 1]
-            else:
-                exteriorLayer = torch.unsqueeze(torch.from_numpy(
-                    ndimage.binary_erosion(mask[0].cpu().numpy().astype(np.bool_), iterations=layers)).to(
-                    device=device).int(), dim=0)
-                mask = mask - exteriorLayer
-                pts = pts[mask.flatten() == maskLabel]
-        if numberOfPoints is not None:
-            skip=getSkipInterval(pts,numberOfPoints)
-            pts=pts[::skip]
-    else:
-        print("wrong dimension")
-    return pts.to(device=device)
-
-def getEvalPointsPercentRandom(image,percent=None,mask=None,maskLabel=None,dilation=None):
-    """Creates a regular grid of evaluation points in the image domain.
-        :param image: image
-        :type image: torch.tensor
-        :param numberOfPoints: approximate number of evaluation points returned
-        :type numberOfPoints: int
-        :param mask: if evaluation points are only required for a segmented image area, supply segmentation mask
-        :type mask: torch.tensor
-        :param maskLabel: segmentation label to be considered for evaluation points
-        :type maskLabel: torch.tensor
-        :return pts: coordinates of evaluation points (#points, dim)
-        :rtype pts: torch.tensor"""
-    device=image.device
-    s_x, s_y,s_z = (torch.meshgrid([torch.arange(0, image.size()[1], 1), torch.arange(0, image.size()[2], 1), torch.arange(0, image.size()[3], 1)]))
-    pts = (torch.stack([s_x.flatten(), s_y.flatten(), s_z.flatten()], dim=1).float()).to(device=device)
-    if maskLabel is not None:
-        if dilation is not None:
-            mask=torch.where(mask==maskLabel,1,0)
-            mask=torch.from_numpy(ndimage.binary_dilation(mask.cpu(),iterations=dilation)).to(device=device)
-            pts = pts[mask.flatten() == 1]
-        else:
-            pts = pts[mask.flatten() == maskLabel]
-    if percent is not None:
-        length=pts.size(0)
-        numberOfPoints=int(length*percent)
-        random_tensor = torch.randperm(pts.size(0))[:numberOfPoints]
-        pts = pts[random_tensor]
-    return pts.to(device=device)
-
-def getEvalPointsPercentFixed(image,percent=None,mask=None,maskLabel=None,dilation=None):
-    """Creates a regular grid of evaluation points in the image domain.
-        :param image: image
-        :type image: torch.tensor
-        :param numberOfPoints: approximate number of evaluation points returned
-        :type numberOfPoints: int
-        :param mask: if evaluation points are only required for a segmented image area, supply segmentation mask
-        :type mask: torch.tensor
-        :param maskLabel: segmentation label to be considered for evaluation points
-        :type maskLabel: torch.tensor
-        :return pts: coordinates of evaluation points (#points, dim)
-        :rtype pts: torch.tensor"""
-    device=image.device
-    s_x, s_y,s_z = (torch.meshgrid([torch.arange(0, image.size()[1], 1), torch.arange(0, image.size()[2], 1), torch.arange(0, image.size()[3], 1)]))
-    pts = (torch.stack([s_x.flatten(), s_y.flatten(), s_z.flatten()], dim=1).float()).to(device=device)
-    if maskLabel is not None:
-        if dilation is not None:
-            mask=torch.where(mask==maskLabel,1,0)
-            mask=torch.from_numpy(ndimage.binary_dilation(mask.cpu(),iterations=dilation)).to(device=device)
-            pts = pts[mask.flatten() == 1]
-        else:
-            pts = pts[mask.flatten() == maskLabel]
-    if percent is not None:
-        length=pts.size(0)
-        numberOfPoints=int(length*percent)
-        if numberOfPoints is not None:
-            skip = getSkipInterval(pts, numberOfPoints)
-            print(skip)
-            pts = pts[::skip]
-    return pts.to(device=device)
-
-
-def assignPoints(device,pts,mask,segments,initialValue=10000):
+def assignPoints(device: str,pts: Tensor,mask: Tensor,segments: Tensor,initialValue: Optional[float]=10000)->Tensor:
+    """Given a mask, points are assigned to one of the entries in segments. This process either checks whether a point lies inside a subdomain or to which it is closest to.
+        :param device: computation device, see torch docs
+        :type device: str
+            :param pts: points
+        :type pts: torch.Tensor
+        :param mask: mask (1,dim1,dim2 (,dim3))
+        :type mask: torch.Tensor
+        :param segments: segments to which points are assigned to
+        :type segments: torch.Tensor
+        :param initialValue: initial distance value
+        :type initialValue: float
+        :return s: segmentation
+        :rtype s: torch.Tensor"""
     segmentMasks=[]
     for s in segments:
         segmentMasks.append(torch.where(mask == s, 1, 0))

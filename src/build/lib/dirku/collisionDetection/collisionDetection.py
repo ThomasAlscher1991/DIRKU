@@ -1,9 +1,9 @@
 import torch
 from typing import Optional, Type, Union
 from torch import Tensor
-from interpolation import *
+from ..interpolation import *
 
-class intersectionDetection():
+class intersectionDetection:
     """ Class for collision detection based on signed distance fields (SDF). The deformable object is represented as a point cloud, the non-deformable obstacle as an SDF.
     :param pts: points representing the deformable object
     :type pts: torch.Tensor
@@ -26,7 +26,7 @@ class intersectionDetection():
         self.pts=pts
         self.pointsMask=pointsMask
         self.pointsMaskLabel=pointsMaskLabel
-    def __call__(self,dis: Tensor=None,**kwargs):
+    def __call__(self,dis: Tensor=None,**kwargs)->Tensor:
         """ Calculates the summed depth of intersecting points. Adds tiny to prevent exploding gradients.
         If pointsMask is given, only masked pts are checked.
         :param dis: displacement of pts

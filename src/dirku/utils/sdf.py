@@ -3,51 +3,64 @@ import igl
 import torch
 import numpy as np
 import skfmm
-
+from typing import Optional, Type, Union, Tuple
+from torch import Tensor
 
 class sdfCreator:
-    """Class for creating signed distance fields.
-    Voxels equating to maskLabel in mask are considered inside an object.
-    Invert for self-intersections.
-        :param mask: mask of the moving image (dim1,dim2(,dim3))
-        :type mask: torch.tensor
-        :param maskLabel: label of segments considered inside
-        :type maskLabel: torch.tensor
-        :param voxelSizes: cell dimensions in mm
-        :type voxelSizes: list of floats
-        :param voxelSizes: invert true will assume all voxels equating to maskLabel in mask are considered outside an object.
-        :type voxelSizes: boolean
+    """Class for creating signed distance fields (SDF).
+    Voxels or pixels equating to maskLabel in mask are considered inside an object.
+    :param device: computation device, see torch docs
+    :type device: str
+        :param reuse: whether the SDF should be reused
+        :type reuse: bool
+        :param workingDirectory: directory of the registration data
+        :type workingDirectory: str
+        :param segmentName: the label of the object to SDF is for
+        :type segmentName: int
         """
 
-    def __init__(self, device, reuse=False, workingDirectory=None, segmentName=None):
-        "Constructor method"
+    def __init__(self, device: str, reuse: Optional[bool]=False, workingDirectory: Optional[bool]=None, segmentName: Optional[int]=None):
+        "Constructor method."
         self.segmentName = segmentName
         self.reuse = reuse
         self.workingDirectory = workingDirectory
         self.device = device
 
-    def checkReuse(self):
+    def checkReuse(self)->bool:
+        """Checks if SDF should be reused.
+        If so, checks the reuse folder.
+        :return: answer whether SDF was found or not
+        :rtype: tbool"""
         self.checkReuseFolder()
         print("reuse sdf")
         if os.path.exists(os.path.join(self.workingDirectory, "reuse", f"sdf_segment_{self.segmentName}.npy")):
             print("found")
             return True
-            found = True
         else:
             print(" not found")
             return False
 
-    def loadReuse(self):
+    def loadReuse(self)->Tensor:
+        """Reuses old SDF.
+        :return: SDF
+        :rtype: torch.Tensor"""
         return torch.from_numpy(
             np.load(os.path.join(self.workingDirectory, "reuse", f"sdf_segment_{self.segmentName}.npy"))).to(
             device=self.device)
 
     def saveReuse(self, sdf):
+        """Saves SDF for reuse."""
         np.save(os.path.join(self.workingDirectory, "reuse", f"sdf_segment_{self.segmentName}.npy"),
                 sdf.cpu().numpy())
 
-    def fromMask(self, mask, voxelSizes=None, invert=False):
-        """from stl mesh in 3d"""
+    def fromMask(self, mask: Tensor, voxelSizes: Optional[Tensor]=None, invert: Optional[bool]=False)->Tensor:
+        """Creates a SDF from a masked image. Entries with 1 will be assigned outside, everything else inside.
+        :param mask: mask of the moving image (1,dim1,dim2(,dim3))
+        :type mask: torch.Tensor
+        :param voxelSizes: cell dimensions in mm
+        :type voxelSizes: torch.Tensor
+        :param invert: flip ones and non-ones integers in mask
+        :type invert: bool"""
         if voxelSizes is None:
             if len(mask.size())==3:
                 voxelSizes=torch.tensor([1.,1.])
@@ -78,8 +91,13 @@ class sdfCreator:
             sdf = torch.unsqueeze(torch.from_numpy(sdf).to(device=self.device), dim=0)
             return sdf
 
-    def fromMesh(self, pathToMesh, domain):
-        """from stl mesh in 3d"""
+    def fromMesh(self, pathToMesh: str, domain: Tensor)->Tensor:
+        """Create a SDF from a 3D triangle surface mesh (stl files).
+        :param pathToMesh: path to file
+        :type pathToMesh: str
+        :param domain: image domain (1,dim1,dim2,dim3)
+        :type domain: torch.Tensor
+        l"""
         vertices, faces = igl.read_triangle_mesh(pathToMesh, 'float')
         if self.reuse:
             if self.checkReuse():
@@ -109,18 +127,19 @@ class sdfCreator:
             return sdf
 
     def checkReuseFolder(self):
+        """Checks if a reuse folder is already created. If not, creates it."""
         if os.path.exists(os.path.join(self.workingDirectory, 'reuse/')):
             pass
         else:
             os.mkdir(os.path.join(self.workingDirectory, 'reuse/'))
 
 
-    def getGrads(self, sdf):
-        """Returns thegradients of signed distance field.
+    def getGrads(self, sdf: Tensor)->Tuple[Tensor,Tensor,Optional[Tensor]]:
+        """Returns the gradients of SDF.
             :param sdf: signed distance field
-            :type sdf: torch.tensor
+            :type sdf: torch.Tensor
             :return gradX,gradY,gradZ: gradients
-            :rtype sdf: lsit of torch.tensor"""
+            :rtype sdf: list of torch.Tensor"""
         if len(sdf.size()) == 4:
 
             translated = sdf.cpu().numpy()[0]

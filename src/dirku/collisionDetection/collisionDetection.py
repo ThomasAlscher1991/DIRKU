@@ -1,7 +1,7 @@
 import torch
 from typing import Optional, Type, Union
 from torch import Tensor
-from interpolation import *
+from ..interpolation import *
 
 class intersectionDetection:
     """ Class for collision detection based on signed distance fields (SDF). The deformable object is represented as a point cloud, the non-deformable obstacle as an SDF.

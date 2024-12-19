@@ -1,5 +1,5 @@
 import torch
-class forwardEulerNumInt():
+class forwardEuler():
     """ Class for forward euler numerical integration of velocity fields; time interval is assumed [0;1]; step size is assumed to be equidistant
     :param t_steps: steps taken to cover time interval
     :type t_steps: int
@@ -100,7 +100,7 @@ class forwardEulerNumInt():
 
 
 
-class trapezoidalNumInt():
+class trapezoidal():
     """ Class for trapezoidal  euler numerical integration of velocity fields.
     Time interval is assumed [0;1].
     Step size is assumed to be equidistant.

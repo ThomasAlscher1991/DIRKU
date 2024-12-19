@@ -1,38 +1,20 @@
 import torch
-
-class linear:
-    """ Class for selecting dimension appropriate linear approximation.
-    :param device: CUDA device or cpu, see torch docs
-    :type device: str
-    :param scale: tensor with stepsize between two consecutive data points in each dimension in pixel fx torch.tensor([1.,1.]) for 2D
-    :type scale: torch.tensor
-    :return: interpolation class
-    :rtype: interpolation class
-    """
-    def __new__(cls, device, scale,jac=False,lap=False):
-        """Static method. Decides on dimensionality.
-        :return: instance of interpolation class
-        :rtype: interpolation class"""
-        if scale.size(0) == 2:
-            return linear2d(device, scale,jac,lap)
-        elif scale.size(0) == 3:
-            return linear3d(device, scale,jac,lap)
-        else:
-            raise ValueError("Unsupported dimension. Only 2D and 3D are supported.")
-
-
-
+from typing import Optional, Type, Union, Tuple
+from torch import Tensor
 
 class linear2d:
-    """ Class for bi-linear approximation in 2 dimensions.
-    :param device: CUDA device or cpu, see torch docs
+    """ Class for bi-linear interpolation in 2 dimensions.
+    :param device: computation device, see torch docs
     :type device: str
-    :param scale: tensor with stepsize between two consecutive data points in each dimension in pixel
-    :type scale: torch.tensor
+    :param scale: tensor with stepsize between two consecutive data points in each dimension in pixel or voxel
+    :type scale: torch.Tensor
+    :param jac: switch to compute jacobian
+    :type jac: bool
+    :param lap: switch to compute laplacian
+    :type lap: bool
     """
-    def __init__(self,device,scale,jac,lap):
-        """Constructor method
-                """
+    def __init__(self,device: str,scale: Tensor,jac: bool,lap: bool):
+        """Constructor method."""
         self.device=device
         self.scale=scale
         self.ones4 = torch.ones([2, 2], dtype=torch.int32, device=device)
@@ -41,13 +23,18 @@ class linear2d:
             [rangi, rangi])
         self.jac=jac
         self.lap=lap
-    def __call__(self,pts,data):
-        """ Compute bi-linear approximation in 2 dimensions.
-        :param pts: interpolation points as tensor (#points,dim) of cartesian coordinates
-        :type pts: torch.tensor
-        :param x: tensor of data points (# fields,  dim 1,  dim 2 )
-        :type x: torch.tensor
-        :return: values at interpolation points (# fields,#points)
+    def __call__(self,pts: Tensor,data: Tensor)->Tuple[Tensor,Tensor,Tensor]:
+        """ Compute tri-linear approximation in 2 dimensions.
+        :param pts: interpolation points coordinates
+        :type pts: torch.Tensor
+        :param data: tensor of data points (# fields,  dim 1,  dim 2 )
+        :type data: torch.Tensor
+        :return w: values at interpolation points (# fields,#points)
+        :rtype w: torch.Tensor
+        :return jacobian: jacobian of interpolation values
+        :rtype jacobian: torch.Tensor
+        :return laplacian: laplacian of interpolation values
+        :rtype laplacian: torch.Tensor
         """
         p = torch.arange(pts.size(0))
         t_idx = pts.div(self.scale).floor()
@@ -85,16 +72,18 @@ class linear2d:
 
 
 class linear3d:
-    """ Class for tri-linear approximation in 3 dimensions.
-    :param device: CUDA device or cpu, see torch docs
+    """ Class for tri-linear interpolation in 3 dimensions.
+    :param device: computation device, see torch docs
     :type device: str
-    :param scale: tensor with stepsize between two consecutive data points in each dimension in pixel
-    :type scale: torch.tensor
+    :param scale: tensor with stepsize between two consecutive data points in each dimension in pixel or voxel
+    :type scale: torch.Tensor
+    :param jac: switch to compute jacobian
+    :type jac: bool
+    :param lap: switch to compute laplacian
+    :type lap: bool
     """
-    def __init__(self,device,scale,jac,lap):
-
-        """Constructor method
-                """
+    def __init__(self,device: str,scale: Tensor,jac: bool,lap: bool):
+        """Constructor method."""
         self.device=device
         self.scale = scale
         self.ones4 = torch.ones([2, 2, 2], dtype=torch.int32, device=device)
@@ -102,11 +91,18 @@ class linear3d:
             [torch.arange(0, 2, device=device), torch.arange(0, 2, device=device), torch.arange(0, 2, device=device)])
         self.jac=jac
         self.lap=lap
-    def __call__(self,pts,data):
+    def __call__(self,pts: Tensor,data: Tensor)->Tuple[Tensor,Tensor,Tensor]:
         """ Compute tri-linear approximation in 3 dimensions.
-        :param pts: interpolation points as tensor (#points,dim) of cartesian coordinates
-        :param x: tensor of interpolation data (# fields,  dim 1,  dim 2 , dim 3)
-        :return: values at interpolation points (# fields,#points)
+        :param pts: interpolation points coordinates
+        :type pts: torch.Tensor
+        :param data: tensor of data points (# fields,  dim 1,  dim 2, dim 3 )
+        :type data: torch.Tensor
+        :return w: values at interpolation points (# fields,#points)
+        :rtype w: torch.Tensor
+        :return jacobian: jacobian of interpolation values
+        :rtype jacobian: torch.Tensor
+        :return laplacian: laplacian of interpolation values
+        :rtype laplacian: torch.Tensor
         """
         t_idx = pts.mul(1 / self.scale).floor()
         t = pts.mul(1 / self.scale) - t_idx
@@ -153,5 +149,25 @@ class linear3d:
 
 
 
-
+class linear:
+    """ Class for linear interpolation.
+    :param device: computation device, see torch docs
+    :type device: str
+    :param scale: tensor with stepsize between two consecutive data points in each dimension in pixel or voxel
+    :type scale: torch.Tensor
+    :param jac: switch to compute jacobian
+    :type jac: bool
+    :param lap: switch to compute laplacian
+    :type lap: bool
+    """
+    def __new__(cls, device: str, scale: Tensor,jac: Optional[bool] = False,lap: Optional[bool] = False)->Union[linear2d,linear3d]:
+        """Static method. Decides on dimensionality.
+        :return: instance of interpolation class
+        :rtype: interpolation class"""
+        if scale.size(0) == 2:
+            return linear2d(device, scale,jac,lap)
+        elif scale.size(0) == 3:
+            return linear3d(device, scale,jac,lap)
+        else:
+            raise ValueError("Unsupported dimension. Only 2D and 3D are supported.")
 
