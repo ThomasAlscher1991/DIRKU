@@ -30,7 +30,7 @@ class sdfCreator:
         """Checks if SDF should be reused.
         If so, checks the reuse folder.
         :return: answer whether SDF was found or not
-        :rtype: tbool"""
+        :rtype: bool"""
         self.checkReuseFolder()
         print("reuse sdf")
         if os.path.exists(os.path.join(self.workingDirectory, "reuse", f"sdf_segment_{self.segmentName}.npy")):

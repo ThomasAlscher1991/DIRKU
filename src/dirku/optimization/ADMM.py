@@ -1,5 +1,94 @@
 import torch
 import tqdm
+from typing import Optional, Type, Union, Tuple
+from torch import Tensor
+from ..geometricTransformations import *
+from .optim_gradientDescentBacktracking import *
+
+class constrainerADMM:
+    """Template class for ADMM coupling constraints.
+                :param c: Tensor with additive constant
+                :type c: torch.Tensor
+                :param dualVariable: Tensor with dual variable
+                :type dualVariable: torch.Tensor
+                :param decisionVariablesXCoef: coefficient for X decision variable
+                :type decisionVariablesXCoef: float
+                :param decisionVariablesZCoef: coefficient for X decision variable
+                :type decisionVariablesZCoef: float"""
+    def __init__(self,c: Tensor,dualVariable: Tensor,decisionVariablesXCoef:float,decisionVariablesZCoef:float):
+        """Constructor method."""
+        self.c=c
+        self.dualVariable=dualVariable
+        self.decisionVariablesXCoef=decisionVariablesXCoef
+        self.decisionVariablesZCoef=decisionVariablesZCoef
+    def __call__(self,decisionVariable: Tensor,decisionVariableFixed: Tensor,decisionVariableCoef: float,decisionVariableFixedCoef: float):
+        pass
+    def updateDualVariable(self, decisionVariablesX: Tensor, decisionVariablesZ: Tensor):
+        pass
+
+class constrainerEulerianADMM(constrainerADMM):
+    """Class for Eulerian ADMM coupling constraints. See Template class.
+    """
+    def __call__(self, decisionVariables: Tensor,decisionVariablesCoef: float,fixedDecisionVariables: Tensor,fixedDecisionVariablesCoef: float)->Tensor:
+        """Calculates constrainer loss.
+                :param decisionVariables: Tensor with decision variables
+                :type decisionVariables: torch.Tensor
+                :param decisionVariablesCoef: coefficient for decision variables
+                :type decisionVariablesCoef: float
+                :param fixedDecisionVariables: Tensor with fixed decision variables
+                :type fixedDecisionVariables: torch.Tensor
+                :param fixedDecisionVariablesCoef: coefficient for fixed decision variables
+                :type fixedDecisionVariablesCoef: float
+                :return : constrainer loss
+                :rtype : torch.Tensor
+        """
+        return decisionVariablesCoef * decisionVariables + fixedDecisionVariablesCoef * fixedDecisionVariables - self.c +self.dualVariable
+    def updateDualVariable(self, decisionVariablesX: Tensor, decisionVariablesZ: Tensor):
+        """Updates the dual variable.
+                :param decisionVariablesX: Tensor with decision variables
+                :type decisionVariablesX: torch.Tensor
+                :param decisionVariablesZ: Tensor with decision variables
+                :type decisionVariablesZ: torch.Tensor
+        """
+        self.dualVariable = self.dualVariable + self.decisionVariablesXCoef * decisionVariablesX.data + self.decisionVariablesZCoef * decisionVariablesZ.data - self.c
+class constrainerLagrangianADMM(constrainerADMM):
+    """Class for Lagrangian ADMM coupling constraints. See Template class.
+        :param transformer: transformer
+        :type transformer: affineTransformation or nonrigidDeformation class
+        :param pts: coupling points
+        :type pts: torch.Tensor
+    """
+    def __init__(self,c: Tensor,dualVariable: Tensor,decisionVariablesXCoef: float,decisionVariablesZCoef: float,transformer: Union[affineTransformation,nonrigidDeformation],pts: Tensor):
+        super().__init__(c,dualVariable,decisionVariablesXCoef,decisionVariablesZCoef)
+        self.transformer=transformer
+        self.pts=pts
+    def __call__(self, decisionVariables: Tensor,decisionVariablesCoef: float,fixedDecisionVariables: Tensor,fixedDecisionVariablesCoef: float)->Tensor:
+        """Calculates constrainer loss.
+                :param decisionVariables: Tensor with decision variables
+                :type decisionVariables: torch.Tensor
+                :param decisionVariablesCoef: coefficient for decision variables
+                :type decisionVariablesCoef: float
+                :param fixedDecisionVariables: Tensor with fixed decision variables
+                :type fixedDecisionVariables: torch.Tensor
+                :param fixedDecisionVariablesCoef: coefficient for fixed decision variables
+                :type fixedDecisionVariablesCoef: float
+                :return : constrainer loss
+                :rtype : torch.Tensor
+        """
+        pts=self.transformer.apply(self.pts,decisionVariables)
+        ptsFixed=self.transformer.apply(self.pts,fixedDecisionVariables)
+        return decisionVariablesCoef * pts + fixedDecisionVariablesCoef * ptsFixed - self.c +self.dualVariable
+    def updateDualVariable(self, decisionVariablesX: Tensor, decisionVariablesZ: Tensor):
+        """Updates the dual variable.
+                :param decisionVariablesX: Tensor with decision variables
+                :type decisionVariablesX: torch.Tensor
+                :param decisionVariablesZ: Tensor with decision variables
+                :type decisionVariablesZ: torch.Tensor
+        """
+        ptsX=self.transformer.apply(self.pts,decisionVariablesX.data)
+        ptsZ=self.transformer.apply(self.pts,decisionVariablesZ.data)
+        self.dualVariable = self.dualVariable + self.decisionVariablesXCoef * ptsX + self.decisionVariablesZCoef * ptsZ - self.c
+
 class closureADMM():
     """ Class for a custom closure function (see pytorch docs) to evaluate the loss function, specifically for ADMM algorithm.
             :param optimizer: optimizer class used for the minimization problem
@@ -10,8 +99,8 @@ class closureADMM():
             :type decisionVariablesFixedCoef: int, float ot torch.Tensor
             :param rho: penalty parameter to weigh the trade off,see ADMM
             :type rho: int or float
-            :param mainTerm: main term to be minimized
-            :type mainTerm: simMeasure or regularizer class
+            :param mainTerms: main term to be minimized
+            :type mainTerms: simMeasure or regularizer class
             :param mainTermCoef: coefficient for mainTerm
             :type mainTermCoef: either int or float
             :param regTerms: list of regularizers to constrain the minimization problem
@@ -21,59 +110,62 @@ class closureADMM():
             :return: backpropagated accumulated loss
             :rtype: torch.Tensor
             """
-    def __init__(self,optimizer,transformer,rho=None,mainTerm=None, regTerms=[]):
-        """Constructor method
-                """
+    def __init__(self,optimizer: Union[gradientDescentBacktracking,torch.optim.Optimizer],transformer: Union[affineTransformation,nonrigidDeformation],rho: Optional[float]=1.0,mainTerms: Optional[list]=None, regTerms: Optional[list]=[]):
+        """Constructor method.            """
         self.optimizer=optimizer
         self.rho=rho
-        self.mainTerm=mainTerm
+        self.mainTerms=mainTerms
         self.regTerms=regTerms
         self.transformer=transformer
 
-    def __call__(self,decisionVariables,decisionVariablesCoef,fixedDecisionVariables,fixedDecisionVariablesCoef,constrainer):
-        """ Calculates the loss function by forward passing the similarity measure and a number of regularization terms and computing the gradients.
+    def __call__(self,decisionVariables: Tensor,decisionVariablesCoef: float,fixedDecisionVariables: Tensor,fixedDecisionVariablesCoef: float,constrainer: Type[constrainerEulerianADMM,constrainerLagrangianADMM])->Tensor:
+        """ Initiates the forward pass for ADMM. In case of gradients switched on, also zeros the gradients first.
                 :param decisionVariables: tensor with decision variables
-                :type decisionVariables: torch.Tensor with gradient True
-                :param fixedDecisionVariables: tensor with decision variables fixed in this iteration and treated as constants
-                :type fixedDecisionVariables: torch.Tensor with gradient True
-                :param dualVariable: measures the deviation from constraints, see ADMM
-                :type dualVariable: torch.Tensor
+                :type decisionVariables: torch.Tensor
+                :param decisionVariablesCoef: coefficients for decision variables
+                :type decisionVariablesCoef: float
+                :param fixedDecisionVariables: tensor with fixed decision variables
+                :type fixedDecisionVariables: torch.Tensor
+                :param fixedDecisionVariablesCoef: coefficients for decision variables
+                :type fixedDecisionVariablesCoef: float
+                :param constrainer: measures the deviation from constraints, see ADMM
+                :type constrainer: constrainerEulerianADMM or constrainerLagrangianADMM class
                 :return: backpropagated accumulated loss
                 :rtype: torch.Tensor
                 """
         if decisionVariables.requires_grad:
             self.optimizer.zero_grad()
-            _,loss=self.transformer(decisionVariables,self.mainTerm,self.regTerms)
+            _,loss=self.transformer(decisionVariables,self.mainTerms,self.regTerms)
             loss=loss+0.5*self.rho*(torch.norm(constrainer(decisionVariables,decisionVariablesCoef,fixedDecisionVariables,fixedDecisionVariablesCoef))**2)
             loss.backward()
         else:
-            _, loss = self.transformer(decisionVariables, self.mainTerm, self.regTerms)
+            _, loss = self.transformer(decisionVariables, self.mainTerms, self.regTerms)
             loss=loss+0.5*self.rho*(torch.norm(constrainer(decisionVariables,decisionVariablesCoef,fixedDecisionVariables,fixedDecisionVariablesCoef))**2)
         return loss
-def algorithmADMM(iterations,subsolverIterations,constrainer,optimizerF,optimizerG,closureF,closureG,decisionVariablesX,decisionVariablesZ,rho):
-    """ Starts the ADMM iterative optimization scheme/algorithm.
-        Requires optimization problem to be split into two main terms and any number of regularization terms.
-        Decides whether step() is called in its default or backtracking implementation (only for optimizer_gradientDescentBT) for both optimizers.
-            :param iterations: number of steps in overall ADMM scheme
+def algorithmADMM(iterations: int,subsolverIterations: int,constrainer: Union[constrainerEulerianADMM,constrainerLagrangianADMM],optimizerF: Union[gradientDescentBacktracking,torch.optim.Optimizer],optimizerG: Union[gradientDescentBacktracking,torch.optim.Optimizer],closureF: Type,closureG: Type,decisionVariablesX: Tensor,decisionVariablesZ: Tensor,rho: float)->dict:
+    """ Starts the ADMM iterative optimization scheme.
+            :param iterations: number of steps in scheme
             :type iterations: int
-            :param subsolverIterations: number of steps in each optimizer scheme
+            :param subsolverIterations: number of steps for every subsolver
             :type subsolverIterations: int
-            :param optimizerF: optimizer class used for the minimization problem for x
-            :type optimizerF: torch.optim.optimizer class
-            :param optimizerG: optimizer class used for the minimization problem for z
-            :type optimizerG: torch.optim.optimizer class
-            :param closureF: closure function to calculate loss and backpropagte for x
-            :type closureF: closure class
-            :param closureG: closure function to calculate loss and backpropagte for z
-            :type closureG: closure class
-            :param decisionVariablesX: tensor with independent variables or parameters to be optimized
-            :type decisionVariablesX: torch.Tensor with gradient True
-            :param decisionVariablesZ: tensor with independent variables or parameters to NOT be optimized
-            :type decisionVariablesZ: torch.Tensor with gradient True
-            :param rho: penalty parameter to weigh the trade off,see ADMM
-            :type rho: int or float
-            :return: dictionary with history of both objective functions, dual and primal residual, and dual variable
-            :rtype: dict
+            :param constrainer: measures the deviation from constraints, see ADMM
+            :type constrainer: constrainerEulerianADMM or constrainerLagrangianADMM class
+            :param optimizerF: optimizer class used for the first minimization problem
+            :type optimizerF: gradientDescentBacktracking or torch.optim.Optimizer class
+            :param optimizerG: optimizer class used for the second minimization problem
+            :type optimizerG: gradientDescentBacktracking or torch.optim.Optimizer class
+            :param closureF: closure function to calculate loss and backpropagate for the first minimization problem.
+            :type closureF: either a function or a class with a __call__ method
+            :param closureG: closure function to calculate loss and backpropagate for the second minimization problem.
+            :type closureG: either a function or a class with a __call__ method
+            :param decisionVariablesX: Tensor with decision variables for the first problem
+            :type decisionVariablesX: torch.Tensor
+            :param decisionVariablesZ: Tensor with decision variables for the second problem
+            :type decisionVariablesZ: torch.Tensor'
+            :param rho: penalty parameter
+            :type rho: float
+            :return dict: dictionary with gradient history and objective function history
+            :rtype dict: dict
             """
     objectiveLossFHistory=[]
     objectiveLossGHistory=[]
@@ -84,20 +176,10 @@ def algorithmADMM(iterations,subsolverIterations,constrainer,optimizerF,optimize
         z_old=decisionVariablesZ.data.clone()
         for j in range(subsolverIterations):
             lossX=optimizerF.step(lambda: closureF(decisionVariablesX,constrainer.decisionVariablesXCoef,decisionVariablesZ.data,constrainer.decisionVariablesZCoef,constrainer))
-        ###
         objectiveLossFHistory.append(lossX.cpu().item())
-
-
         for j in range(subsolverIterations):
-
             lossZ=optimizerG.step(lambda: closureG(decisionVariablesZ,constrainer.decisionVariablesZCoef,decisionVariablesX.data,constrainer.decisionVariablesXCoef,constrainer))
-        ###
-
-
-
         constrainer.updateDualVariable(decisionVariablesX,decisionVariablesZ)
-
-
         objectiveLossGHistory.append(lossZ.cpu().item())
         primalResidualHistory.append(torch.norm((decisionVariablesX.data - decisionVariablesZ.data)).cpu().item())
         dualResidualHistory.append(torch.norm(-rho * (decisionVariablesZ.data - z_old)).cpu().item())
@@ -112,7 +194,53 @@ def algorithmADMM(iterations,subsolverIterations,constrainer,optimizerF,optimize
 
 
 
-def algorithmADMMStochasticTwoSet(device,iterations,subsolverIterations,constrainer,optimizerF,optimizerG,closureF,closureG,decisionVariablesX,decisionVariablesZ,rho,evalPoints1,evalPointsIntensities1,percentage1,stochasticTerms1,evalPoints2,evalPointsIntensities2,percentage2,stochasticTerms2,pointsMaskLabel1=None,pointsMaskLabel2=None):
+def algorithmADMMStochastic(device: str,iterations: int,subsolverIterations: int,constrainer: Union[constrainerEulerianADMM,constrainerLagrangianADMM],optimizerF: Union[gradientDescentBacktracking,torch.optim.Optimizer],optimizerG: Union[gradientDescentBacktracking,torch.optim.Optimizer],closureF: Type,closureG: Type,decisionVariablesX: Tensor,decisionVariablesZ: Tensor,rho: float,evalPoints1: Tensor,evalPointsIntensities1: Tensor,percentage1: float,stochasticTerms1: list,evalPoints2: Tensor,evalPointsIntensities2: Tensor,percentage2: float,stochasticTerms2: list,pointsMaskLabel1: Optional[Tensor]=None,pointsMaskLabel2: Optional[Tensor]=None)->dict:
+    """ Starts the ADMM iterative optimization scheme.  It uses stochastic selection of evaluation points.
+            :param device: computation device, see torch docs
+            :type device: str
+            :param iterations: number of steps in scheme
+            :type iterations: int
+            :param subsolverIterations: number of steps for every subsolver
+            :type subsolverIterations: int
+            :param constrainer: measures the deviation from constraints, see ADMM
+            :type constrainer: constrainerEulerianADMM or constrainerLagrangianADMM class
+            :param optimizerF: optimizer class used for the first minimization problem
+            :type optimizerF: gradientDescentBacktracking or torch.optim.Optimizer class
+            :param optimizerG: optimizer class used for the second minimization problem
+            :type optimizerG: gradientDescentBacktracking or torch.optim.Optimizer class
+            :param closureF: closure function to calculate loss and backpropagate for the first minimization problem.
+            :type closureF: either a function or a class with a __call__ method
+            :param closureG: closure function to calculate loss and backpropagate for the second minimization problem.
+            :type closureG: either a function or a class with a __call__ method
+            :param decisionVariablesX: Tensor with decision variables for the first problem
+            :type decisionVariablesX: torch.Tensor
+            :param decisionVariablesZ: Tensor with decision variables for the second problem
+            :type decisionVariablesZ: torch.Tensor'
+            :param rho: penalty parameter
+            :type rho: float
+            :param evalPoints1: range of evaluation points available for selection for the first problem
+            :type evalPoints1: torch.Tensor
+            :param evalPointsIntensities1: range of intensities of evaluation points available for selection for the first problem
+            :type evalPointsIntensities1: torch.Tensor
+            :param percentage1: percentage of points used in each iteration ranging from [0;1] for the first problem
+            :type percentage1: float
+            :param stochasticTerms1: list of mainTerms and regTerms that need updates to their points in every iteration for the first problem
+            :type stochasticTerms1: list
+            :param pointsMaskLabel1: points mask labels for points that need to be exchanged for the first problem
+            :type pointsMaskLabel1: torch.Tensor
+            :param evalPoints2: range of evaluation points available for selection for the second problem
+            :type evalPoints2: torch.Tensor
+            :param evalPointsIntensities2: range of intensities of evaluation points available for selection for the second problem
+            :type evalPointsIntensities2: torch.Tensor
+            :param percentage2: percentage of points used in each iteration ranging from [0;1] for the second problem
+            :type percentage2: float
+            :param stochasticTerms2: list of mainTerms and regTerms that need updates to their points in every iteration for the second problem
+            :type stochasticTerms2: list
+            :param pointsMaskLabel2: points mask labels for points that need to be exchanged for the second problem
+            :type pointsMaskLabel2: torch.Tensor
+            :return dict: dictionary with gradient history and objective function history
+            :rtype dict: dict
+            """
     objectiveLossFHistory=[]
     objectiveLossGHistory=[]
     primalResidualHistory=[]
@@ -176,42 +304,3 @@ def algorithmADMMStochasticTwoSet(device,iterations,subsolverIterations,constrai
             "dualVariableHistory": dualVariableHistory
             }
     return dict
-
-class constrainerADMM():
-    def __init__(self,c,dualVariable,decisionVariablesXCoef,decisionVariablesZCoef):
-        self.c=c
-        self.dualVariable=dualVariable
-        self.decisionVariablesXCoef=decisionVariablesXCoef
-        self.decisionVariablesZCoef=decisionVariablesZCoef
-
-
-    def __call__(self,decisionVariable,decisionVariableFixed,decisionVariableCoef,decisionVariableFixedCoef):
-        pass
-
-    def updateDualVariable(self, decisionVariablesX, decisionVariablesZ):
-        pass
-
-
-class constrainerEulerianADMM(constrainerADMM):
-    def __call__(self, decisionVariables,decisionVariablesCoef,fixedDecisionVariables,fixedDecisionVariablesCoef):
-        return decisionVariablesCoef * decisionVariables + fixedDecisionVariablesCoef * fixedDecisionVariables - self.c +self.dualVariable
-    def updateDualVariable(self, decisionVariablesX, decisionVariablesZ):
-        self.dualVariable = self.dualVariable + self.decisionVariablesXCoef * decisionVariablesX.data + self.decisionVariablesZCoef * decisionVariablesZ.data - self.c
-
-class constrainerLagrangianADMM(constrainerADMM):
-    def __init__(self,c,dualVariable,decisionVariablesXCoef,decisionVariablesZCoef,transformer,pts):
-        super().__init__(c,dualVariable,decisionVariablesXCoef,decisionVariablesZCoef)
-        self.transformer=transformer
-        self.pts=pts
-
-
-    def __call__(self, decisionVariables,decisionVariablesCoef,fixedDecisionVariables,fixedDecisionVariablesCoef):
-        pts=self.transformer.apply(self.pts,decisionVariables)
-        ptsFixed=self.transformer.apply(self.pts,fixedDecisionVariables)
-
-        return decisionVariablesCoef * pts + fixedDecisionVariablesCoef * ptsFixed - self.c +self.dualVariable
-
-    def updateDualVariable(self, decisionVariablesX, decisionVariablesZ):
-        ptsX=self.transformer.apply(self.pts,decisionVariablesX.data)
-        ptsZ=self.transformer.apply(self.pts,decisionVariablesZ.data)
-        self.dualVariable = self.dualVariable + self.decisionVariablesXCoef * ptsX + self.decisionVariablesZCoef * ptsZ - self.c

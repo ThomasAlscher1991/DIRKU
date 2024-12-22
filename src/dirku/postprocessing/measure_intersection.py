@@ -1,7 +1,6 @@
 import itertools
 from shapely.geometry import Polygon
 from skimage import measure
-from stl import mesh
 import torch
 import numpy as np
 import os

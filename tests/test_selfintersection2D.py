@@ -5,12 +5,10 @@ import numpy as np
 import os, glob, tqdm
 import json
 from src.dirku import utils, interpolation, geometricTransformations, similarityMeasure, optimization, \
-    numericalIntegration, collisionDetection, regularization,meshing,postprocessing
+    numericalIntegration, collisionDetection, regularization,postprocessing
 import pickle
 import matplotlib.tri as mtri
 import scipy
-import pyvista as pv
-import pymeshlab
 import skfmm
 import sys
 import time
@@ -44,8 +42,7 @@ def deformable_ccdir(device, workingDirectory, segmentTuple,simCoef=1,lr=1,colCo
         movingImageMaskTemp=movingImageMaskTemp+torch.where(movingImageMask==s,1,0)
 
 
-    # get mesh
-    contour = torch.from_numpy(np.load(os.path.join(workingDirectory, "contours.npy"))).to(device=device)
+    """contour = torch.from_numpy(np.load(os.path.join(workingDirectory, "contours.npy"))).to(device=device)
     contour = torch.unique(contour, dim=0)
     m = meshing.triangleMesh(device)
     m.getTriangleMeshfromContour(contour)
@@ -53,28 +50,21 @@ def deformable_ccdir(device, workingDirectory, segmentTuple,simCoef=1,lr=1,colCo
     m.cleanConvex(simp.cpu().numpy(), vertices.cpu().numpy(), torch.where(movingImageMask[0] > 0, 1, 0).cpu().numpy())
     vert, simp = m.getVerticesAndSimplices()
     selfColSel2 = vert[:, 0] <= 50.5
-    selfColSel1 = vert[:, 0] > 50.5
+    selfColSel1 = vert[:, 0] > 50.5"""
     s = utils.sdfCreator(device, reuse=False)
     sdf = s.fromMask(torch.where(movingImageMask > 0, 1, 0), invert=True)
 
+    vertices=torch.from_numpy(np.load(os.path.join(workingDirectory,"vertices.npy"))).to(device=device)
+    simplices=torch.from_numpy(np.load(os.path.join(workingDirectory,"simplices.npy"))).to(device=device)
+    shared1=torch.from_numpy(np.load(os.path.join(workingDirectory,"connectorPoints.npy"))).to(device=device)
+    shared2=torch.from_numpy(np.load(os.path.join(workingDirectory,"connectorPoints.npy"))).to(device=device)
+
     verticesOriginal=vertices.clone()
-
-    """fig,ax=plt.subplots(2)
-    ax[0].imshow(sdf[0].cpu())
-    ax[1].imshow(movingImageMask[0].cpu())
-    import matplotlib.tri as tri
-    triangulation = tri.Triangulation(vertices[:, 1].cpu(), vertices[:, 0].cpu(), triangles=simp.cpu())
-    #ax[1].scatter(vert[:,1].cpu(),vert[:,0].cpu())
-    ax[1].triplot(triangulation, color='blue')
-    plt.show()"""
-
 
 
     evalPointsSegment1 = utils.getEvaluationPoints(device,movingImageMask,  mask=movingImageMask, maskLabel=torch.tensor([segmentTuple[0]], device=device))
     evalPointsSegment2 = utils.getEvaluationPoints(device,movingImageMask,  mask=movingImageMask, maskLabel=torch.tensor([segmentTuple[1]], device=device))
 
-    shared1=torch.from_numpy(np.load(os.path.join(workingDirectory,f"connectorPoints{segmentTuple}.npy"))).to(device=device)
-    shared2=torch.from_numpy(np.load(os.path.join(workingDirectory,f"connectorPoints{segmentTuple}.npy"))).to(device=device)
 
     intensityInterpolator = interpolation.cubic(device, torch.tensor([1., 1.], device=device))
     evalPointsIntensitySegment1, _, _ = intensityInterpolator(evalPointsSegment1, movingImage)

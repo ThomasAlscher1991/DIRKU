@@ -6,24 +6,27 @@ from .. import  geometricTransformations, interpolation
 import pickle
 from .postprocessing_utils import *
 import math
+from typing import Optional, Type, Union, Tuple
+from torch import Tensor
 
 
-
-def measure_jacobian(device,workingDirectory,voxelToMm=None,segmentsOfInterest=None):
+def measure_jacobian(device: str,workingDirectory: str,voxelToMm: Optional[Tensor]=None,segmentsOfInterest: Optional[list]=None)->dict:
     """ POSTPROCESSING NEGATIVE JACOBIANS.
     Sample script for calculating the percentage of determinant of negative Jacobians. Uses finite differences.
     Use the same interpolators, integrators, geometric transformations with the same class variables as used in the optimization.
     For interpolation of mask, use either nearest neighbour interpolation or round result to integers.
     Set the following variables
         :param device: sets the computation device, see torch
-        :type device: string
+        :type device: str
         :param workingDirectory: path to working directory, see docs
-        :type workingDirectory: string
+        :type workingDirectory: str
         :param voxelToMm: voxel or pixel size to mm; used to scale the image plot; one entry corresponding to each image dimension;
-        :type voxelToMm: torch.tensor
+        :type voxelToMm: torch.Tensor
+        :param segmentsOfInterest: segmentation integers that are to be measured
+        :type segmentsOfInterest: list
+        :return: DICE
+        :rtype: Tensor
     """
-
-    #BASICS: load images
     movingImageMask=torch.unsqueeze(torch.from_numpy(np.load(os.path.join(workingDirectory, "moving_mask.npy"))), dim=0).to(device=device)
     fixedImageMask=torch.unsqueeze(torch.from_numpy(np.load(os.path.join(workingDirectory, "fixed_mask.npy"))), dim=0).to(device=device)
     indices = np.indices(movingImageMask.cpu()[0].size())
@@ -31,11 +34,8 @@ def measure_jacobian(device,workingDirectory,voxelToMm=None,segmentsOfInterest=N
     for i, slide in enumerate(indices):
         pts[:, i] = slide.flatten()
     pts=torch.from_numpy(pts).to(device=device).float()
-
     fields={}
-
     if pts.size(1)==3:
-
         if segmentsOfInterest is not None:
             for segment in segmentsOfInterest:
                 ptsSegmentation = torch.ones(pts.size(0), dtype=torch.bool)*segment

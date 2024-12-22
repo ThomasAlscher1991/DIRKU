@@ -22,8 +22,8 @@ class nonrigidDeformation():
         """Displaces points with nonrigid displacement. Evaluates mainTerm and regTerms on the fly.
         :param velocityField: set of velocity fields (time frames, dimensions, # control points dim 1, # control points dim 2 [,# control points dim 3])
         :type velocityField: torch.Tensor
-        :param mainTerm: main terms of the cost function, for example similarity measure or collision detection
-        :type mainTerm: list of any regularization, collisionDetection, or similarityMeasure class
+        :param mainTerms: main terms of the cost function, for example similarity measure or collision detection
+        :type mainTerms: list of any regularization, collisionDetection, or similarityMeasure class
         :param regTerms: regularization terms of the cost function
         :type regTerms: list of any regularization, collisionDetection, or similarityMeasure class
         :return ptsDis: displaced points in spatial configuration
@@ -57,6 +57,10 @@ class affineTransformation():
         """ Displaces points with an affine transformation. Evaluates mainTerm and regTerms on the fly.
         :param affineMat: affine transformation matrix; either 3x3 or 4x4;
         :type affineMat: torch.Tensor
+        :param mainTerms: main terms of the cost function, for example similarity measure or collision detection
+        :type mainTerms: list of any regularization, collisionDetection, or similarityMeasure class
+        :param regTerms: regularization terms of the cost function
+        :type regTerms: list of any regularization, collisionDetection, or similarityMeasure class
         :return ptsDis: displaced points in spatial configuration
         :rtype ptsDis: torch.Tensor
         :return loss: accumulated loss of mainTerms and regTerms

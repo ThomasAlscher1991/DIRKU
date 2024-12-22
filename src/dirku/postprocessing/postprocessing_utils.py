@@ -4,11 +4,14 @@ import numpy as np
 import os
 import pickle
 from ..import geometricTransformations
-def compute_gradient_central_diff3D(F, dx=1.0, dy=1.0, dz=1.0):
-    """ Computes jacobian via finite differences in 3D.
+from typing import Optional, Type, Union, Tuple
+from torch import Tensor
+
+def compute_gradient_central_diff3D(F: Tensor, dx: Optional[float]=1.0, dy: Optional[float]=1.0, dz: Optional[float]=1.0)->Tuple[Tensor,Tensor,Tensor]:
+    """ Computes Jacobian of dense vector fields via finite differences in 3D.
     Set the following variables
         :param F: field
-        :type F: torch.tensor
+        :type F: torch.Tensor
         :param dx: finite differences step in x direction
         :type dx: float
         :param dy: finite differences step in x direction
@@ -16,33 +19,28 @@ def compute_gradient_central_diff3D(F, dx=1.0, dy=1.0, dz=1.0):
         :param dz: finite differences step in x direction
         :type dz: float
         :return dFdx: derivative in x
-        :rtype dFdx: torch.tensor
+        :rtype dFdx: torch.Tensor
         :return dFdy: derivative in y
-        :rtype dFdy: torch.tensor
+        :rtype dFdy: torch.Tensor
         :return dFdz: derivative in z
-        :rtype dFdz: torch.tensor
+        :rtype dFdz: torch.Tensor
     """
-
     dFdx = (torch.roll(F, -1, dims=0) - torch.roll(F, 1, dims=0)) / (2 * dx)
     dFdy = (torch.roll(F, -1, dims=1) - torch.roll(F, 1, dims=1)) / (2 * dy)
     dFdz = (torch.roll(F, -1, dims=2) - torch.roll(F, 1, dims=2)) / (2 * dz)
-
     dFdx[0, :, :] = (F[1, :, :] - F[0, :, :]) / dx  # Forward difference
     dFdx[-1, :, :] = (F[-1, :, :] - F[-2, :, :]) / dx  # Backward difference
-
     dFdy[:, 0, :] = (F[:, 1, :] - F[:, 0, :]) / dy  # Forward difference
     dFdy[:, -1, :] = (F[:, -1, :] - F[:, -2, :]) / dy  # Backward difference
-
     dFdz[:, :, 0] = (F[:, :, 1] - F[:, :, 0]) / dz  # Forward difference
     dFdz[:, :, -1] = (F[:, :, -1] - F[:, :, -2]) / dz  # Backward difference
-
     return dFdx, dFdy, dFdz
 
-def compute_gradient_central_diff2D(F, dx=1.0, dy=1.0):
+def compute_gradient_central_diff2D(F: Tensor, dx: Optional[float]=1.0, dy: Optional[float]=1.0)->Tuple[Tensor,Tensor]:
     """ Computes jacobian via finite differences in 2D.
     Set the following variables
         :param F: field
-        :type F: torch.tensor
+        :type F: torch.Tensor
         :param dx: finite differences step in x direction
         :type dx: float
         :param dy: finite differences step in x direction
@@ -50,34 +48,37 @@ def compute_gradient_central_diff2D(F, dx=1.0, dy=1.0):
         :return dFdx: derivative in x
         :rtype dFdx: torch.tensor
         :return dFdy: derivative in y
-        :rtype dFdy: torch.tensor
+        :rtype dFdy: torch.Tensor
     """
-
     dFdx = (torch.roll(F, -1, dims=0) - torch.roll(F, 1, dims=0)) / (2 * dx)
     dFdy = (torch.roll(F, -1, dims=1) - torch.roll(F, 1, dims=1)) / (2 * dy)
-
-
     dFdx[0, :] = (F[1, :] - F[0, :]) / dx  # Forward difference
     dFdx[-1, :] = (F[-1, :] - F[-2, :]) / dx  # Backward difference
-
     dFdy[:, 0] = (F[:, 1] - F[:, 0]) / dy  # Forward difference
     dFdy[:, -1] = (F[:, -1] - F[:, -2]) / dy  # Backward difference
     return dFdx, dFdy
 
-
-def extract_segment_and_scale_JSON(file):
-    """ For automated recognition of scale and segment
+def extract_segment_and_scale_JSON(file: str)->Tuple[str,str]:
+    """ For automated recognition of scale and segment in nonrigid result names.
         Handles single integer segments, tuple segments, and 'None' segments
+        :param file: file name of result
+        :type file: str
+        :param dx: finite differences step in x direction
+        :type dx: float
+        :param dy: finite differences step in x direction
+        :type dy: float
+        :return dFdx: derivative in x
+        :rtype dFdx: torch.tensor
+        :return dFdy: derivative in y
+        :rtype dFdy: torch.Tensor
     """
     # Updated pattern to handle single integers, tuples, and the word 'None'
     pattern = r"transformation_nonrigid_segment_(?P<segment>\(\d+(?:, \d+)*\)|\d+|None)_scale_tensor\(\[(?P<scale>[0-9., ]+)\]\)\.json"
-
     # Loop over file names and extract information
     match = re.match(pattern, file)
     if match:
         segment = match.group("segment")
         scale = match.group("scale")
-
         # Parse the segment: handle tuple, single integer, and 'None' case
         if segment == 'None':
             segment_values = None
@@ -87,7 +88,6 @@ def extract_segment_and_scale_JSON(file):
         else:
             # Parse single integer segment
             segment_values = int(segment)
-
         # Parse the scale as a list of floats
         scale_values = [float(val.strip()) for val in scale.split(',')]
 

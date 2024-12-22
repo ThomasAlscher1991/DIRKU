@@ -1,52 +1,55 @@
 import torch
 import tqdm
-class closureGradientDescent():
+from typing import Optional, Type, Union, Tuple
+from torch import Tensor
+from ..geometricTransformations import *
+from .optim_gradientDescentBacktracking import *
+
+class closureGradientDescent:
     """ Class for a custom closure function (see pytorch docs) to evaluate the loss function.
-            :param optimizer: optimizer class used for the minimization problem
-            :type optimizer: torch.optim.optimizer class
-            :param mainTerm: main term that consitutes the objective function
-            :type mainTerm: custom class
-            :param mainTermCoef: coefficient for mainTerm
-            :type mainTermCoef: either int or float
-            :param regTerms: list of regularizers to constrain the minimization problem
-            :type regTerms: list of regularizer classes MUST BE A LIST
-            :param regTermsCoefs: list of coefficients for the regularizers
-            :type regTermsCoefs: list of ints or floats
+        :param optimizer: optimizer class used for the minimization problem
+        :type optimizer: gradientDescentBacktracking or torch.optim.Optimizer class'
+        :param transformer: transformer
+        :type transformer: affineTransformation or nonrigidDeformation class
+        :param mainTerms: main terms of the cost function, for example similarity measure or collision detection
+        :type mainTerms: list of any regularization, collisionDetection, or similarityMeasure class
+        :param regTerms: regularization terms of the cost function
+        :type regTerms: list of any regularization, collisionDetection, or similarityMeasure class
             """
-    def __init__(self,optimizer,transformer,mainTerm=None,regTerms=[]):
-        """Constructor method
-                """
+    def __init__(self,optimizer: Union[gradientDescentBacktracking,torch.optim.Optimizer],transformer: Union[affineTransformation,nonrigidDeformation],mainTerms: Optional[list]=None,regTerms: Optional[list]=[]):
+        """Constructor method.                """
         self.optimizer=optimizer
-        self.mainTerm=mainTerm
+        self.mainTerms=mainTerms
         self.regTerms=regTerms
         self.transformer=transformer
 
-    def __call__(self,decisionVariables):
-        """ Calculates the loss function by forward passing the similarity measure and a number of regularization terms and computing the gradients.
-                :param decisionVariables: tensor with decision variables
-                :type decisionVariables: torch.Tensor with gradient True
-                :return: backpropagated accumulated loss
-                :rtype: torch.Tensor
+    def __call__(self,decisionVariables: Tensor)->Tensor:
+        """ Initiates the forward pass. In case of gradients switched on, also zeros the gradients first.
+                :param decisionVariables: Tensor with decision variables
+                :type decisionVariables: torch.Tensor
+                :return loss: backpropagated accumulated loss
+                :rtype loss: torch.Tensor
                 """
         if decisionVariables.requires_grad:
             self.optimizer.zero_grad()
-            _,loss=self.transformer(decisionVariables,self.mainTerm,self.regTerms)
+            _,loss=self.transformer(decisionVariables,self.mainTerms,self.regTerms)
             loss.backward()
         else:
-            _, loss = self.transformer(decisionVariables, self.mainTerm, self.regTerms)
+            _, loss = self.transformer(decisionVariables, self.mainTerms, self.regTerms)
         return loss
-def algorithmGradientDescent(iterations,optimizerF,closureF,decisionVariables):
-    """ Starts a default iterative optimization scheme/algorithm. Decides whether step() is called in its default or backtracking implementation (only for optimizer_gradientDescentBT).
+
+def algorithmGradientDescent(iterations: int,optimizerF: Union[gradientDescentBacktracking,torch.optim.Optimizer],closureF: Type,decisionVariables: Tensor)->dict:
+    """ Starts a default iterative, gradient descent optimization scheme.
             :param iterations: number of steps in scheme
             :type iterations: int
             :param optimizerF: optimizer class used for the minimization problem
-            :type optimizerF: torch.optim.optimizer class
-            :param closureF: closure function to calculate loss and backpropagte
-            :type closureF: closure class
-            :param decisionVariables: tensor with independent variables or parameters to be optimized
-            :type decisionVariables: torch.Tensor with gradient True
-            :return: dictionary with gradient history and objective function history
-            :rtype: dict
+            :type optimizerF: gradientDescentBacktracking or torch.optim.Optimizer class
+            :param closureF: closure function to calculate loss and backpropagate.
+            :type closureF: either a function or a class with a __call__ method
+            :param decisionVariables: Tensor with decision variables
+            :type decisionVariables: torch.Tensor
+            :return dict: dictionary with gradient history and objective function history
+            :rtype dict: dict
             """
     gradientFHistory=[]
     objectiveLossFHistory=[]
@@ -59,18 +62,28 @@ def algorithmGradientDescent(iterations,optimizerF,closureF,decisionVariables):
     return dict
 
 
-def algorithmGradientDescentStochastic(device,iterations,optimizerF,closureF,decisionVariables,evalPoints,evalPointsIntensities,percentage,stochasticTerms):
-    """ Starts a default iterative optimization scheme/algorithm. Decides whether step() is called in its default or backtracking implementation (only for optimizer_gradientDescentBT).
+def algorithmGradientDescentStochastic(device: str,iterations: int,optimizerF: Union[gradientDescentBacktracking,torch.optim.Optimizer],closureF: Type,decisionVariables: Tensor,evalPoints: Tensor,evalPointsIntensities: Tensor,percentage: float,stochasticTerms: list)->dict:
+    """ Starts a default iterative, gradient descent optimization scheme. It uses stochastic selection of evaluation points.
+            :param device: computation device, see torch docs
+            :type device: str
             :param iterations: number of steps in scheme
             :type iterations: int
             :param optimizerF: optimizer class used for the minimization problem
-            :type optimizerF: torch.optim.optimizer class
-            :param closureF: closure function to calculate loss and backpropagte
-            :type closureF: closure class
-            :param decisionVariables: tensor with independent variables or parameters to be optimized
-            :type decisionVariables: torch.Tensor with gradient True
-            :return: dictionary with gradient history and objective function history
-            :rtype: dict
+            :type optimizerF: gradientDescentBacktracking or torch.optim.Optimizer class
+            :param closureF: closure function to calculate loss and backpropagate.
+            :type closureF: either a function or a class with a __call__ method
+            :param decisionVariables: Tensor with decision variables
+            :type decisionVariables: torch.Tensor
+            :param evalPoints: range of evaluation points available for selection
+            :type evalPoints: torch.Tensor
+            :param evalPointsIntensities: range of intensities of evaluation points available for selection
+            :type evalPointsIntensities: torch.Tensor
+            :param percentage: percentage of points used in each iteration ranging from [0;1]
+            :type percentage: float
+            :param stochasticTerms: list of mainTerms and regTerms that need updates to their points in every iteration
+            :type stochasticTerms: list
+            :return dict: dictionary with gradient history and objective function history
+            :rtype dict: dict
             """
     gradientFHistory=[]
     objectiveLossFHistory=[]

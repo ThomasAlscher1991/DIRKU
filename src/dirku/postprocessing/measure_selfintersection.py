@@ -1,18 +1,9 @@
-import pyvista as pv
-from shapely.geometry import Polygon
 from skimage import measure
-import itertools
-import torch
-import numpy as np
-import os
 from .. import  geometricTransformations,  collisionDetection,utils, interpolation,meshing
-import re
 import matplotlib.pyplot as plt
 import igl
-import pickle
 from .postprocessing_utils import *
 from shapely.geometry import LineString, Polygon
-
 from shapely.ops import polygonize, unary_union
 
 
