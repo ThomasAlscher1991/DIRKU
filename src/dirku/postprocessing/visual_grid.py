@@ -6,22 +6,23 @@ import re
 import matplotlib.pyplot as plt
 import pickle
 from .postprocessing_utils import *
+from typing import Optional, Type, Union, Tuple
+from torch import Tensor
 
-def visual_grid(device,workingDirectory,voxelToMm=None,segmentsOfInterest=None,dimension=None,slice=None):
-    """ POSTPROCESSING GRID
-    Sample script to create a deformation grid.
-    Use the same interpolators, integrators, geometric transformations with the same class variables as used in the optimization.
-    Set the following variables
+def visual_grid(device: str,workingDirectory: str,voxelToMm: Optional[list]=None,segmentsOfInterest: Optional[list]=None,dimension: int=None,slice: int=None):
+    """ Plots the deformation grid.
         :param device: sets the computation device, see torch
         :type device: string
         :param workingDirectory: path to working directory, see docs
         :type workingDirectory: string
+        :param segmentsOfInterest: segmentations of interest list
+        :type segmentsOfInterest: list
+        :param voxelSizes: cell dimensions in mm
+        :type voxelSizes: torch.Tensor
         :param dimension: if 3D registration, set with dimension should be displayed
         :type dimension: int
         :param slice: if 3D registration, set with slice in dimension should be displayed
         :type slice: int
-        :param voxelToMm: voxel or pixel size to mm; used to scale the image plot; one entry corresponding to each image dimension;
-        :type voxelToMm: torch.tensor
     """
 
     #BASICS: load images

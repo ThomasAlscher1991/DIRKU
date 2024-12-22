@@ -8,16 +8,22 @@ import pickle
 import itertools
 import scipy
 from .postprocessing_utils import *
-def visual_shear(device,workingDirectory,voxelToMm=None,segmentsOfInterest=None,dimension=None,slice=None):
-    """ POSTPROCESSING SHEAR
-    Sample script for calculating the shear stretch inside segments and along segment boundaries.
-    Use the same interpolators, integrators, geometric transformations with the same class variables as used in the optimization.
-    For interpolation of mask, use either nearest neighbour interpolation or round result to integers.
-    Set the following variables
+from typing import Optional, Type, Union, Tuple
+from torch import Tensor
+def visual_shear(device: str,workingDirectory: str,voxelToMm: Optional[list]=None,segmentsOfInterest: Optional[list]=None,dimension: int=None,slice: int=None):
+    """ Plots the shear image.
         :param device: sets the computation device, see torch
         :type device: string
         :param workingDirectory: path to working directory, see docs
         :type workingDirectory: string
+        :param segmentsOfInterest: segmentations of interest list
+        :type segmentsOfInterest: list
+        :param voxelSizes: cell dimensions in mm
+        :type voxelSizes: torch.Tensor
+        :param dimension: if 3D registration, set with dimension should be displayed
+        :type dimension: int
+        :param slice: if 3D registration, set with slice in dimension should be displayed
+        :type slice: int
     """
     # BASICS: load images
     movingImageMask = torch.unsqueeze(torch.from_numpy(np.load(os.path.join(workingDirectory, "moving_mask.npy"))),

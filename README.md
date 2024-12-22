@@ -47,6 +47,7 @@ Interpolation is necessary for determining image intensities at non-integer loca
 - Nearest neighbor
 - Linear
 - Cubic
+- 
 The same interpolators are used for both images (1 channel) and velocity fields (2 or 3 channels), thanks to a unified approach. Any field passed to the interpolator must have at least one channel. The scale argument defines the control point distances for the interpolation. These interpolators also allow on-the-fly computation of the Jacobian and Laplacian.
 
 ## Integration
@@ -63,6 +64,7 @@ One solution for mesh generation is available through the [meshing](https://gith
 
 ## Folder structure
 Users are free to organize their data in any structure they prefer. However, we provide a sample structure that may simplify the process if followed.
+Results are saved in 3 ways: a json file for convergences, a pickle for the class and a numpy array for the velocity field.
 The working directory is where all the data for a specific case should be stored. Images and landmarks must be loaded as NumPy arrays. The recommended folder structure is as follows:
 ```
 workingDirectory

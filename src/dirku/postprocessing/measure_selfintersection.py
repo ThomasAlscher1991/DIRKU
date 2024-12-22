@@ -5,19 +5,25 @@ import igl
 from .postprocessing_utils import *
 from shapely.geometry import LineString, Polygon
 from shapely.ops import polygonize, unary_union
+from typing import Optional, Type, Union, Tuple
+from torch import Tensor
 
-
-def measure_selfIntersection3dVoxelBased(device,workingDirectory,voxelToMm=None,segmentsOfInterest=None):
-    """ POSTPROCESSING SELF-INTERSECTION
-    Calculates volumne/surface of self-intersections.
-    Use the same interpolators, integrators, geometric transformations with the same class variables as used in the optimization.
-    Set the following variables
+def measure_selfIntersection3d(device: str,workingDirectory: str,voxelToMm: Optional[Tensor]=None,segmentsOfInterest: Optional[Tensor]=None,vertices: Tensor=None,simplices: Tensor=None)->Tensor:
+    """ Calculates the overlap from selfintersections in 3D. Object is input as vertex and simplex collection.
         :param device: sets the computation device, see torch
         :type device: string
         :param workingDirectory: path to working directory, see docs
         :type workingDirectory: string
-        :param voxelToMm: voxel or pixel size to mm; used to scale the image plot; one entry corresponding to each image dimension;
-        :type voxelToMm: torch.tensor
+        :param segmentsOfInterest: segmentations of interest list
+        :type segmentsOfInterest: list
+        :param voxelToMm: cell dimensions in mm
+        :type voxelToMm: torch.Tensor
+        :param vertices: vertex collection
+        :type vertices: list
+        :param simplices: simplex collection
+        :type simplices: list
+        :return : overlap
+        :rtype : Tensor
     """
     # BASICS: load images
     movingImageMask = torch.unsqueeze(torch.from_numpy(np.load(os.path.join(workingDirectory, "moving_mask.npy"))),
@@ -29,16 +35,6 @@ def measure_selfIntersection3dVoxelBased(device,workingDirectory,voxelToMm=None,
         coords[:, i] = slide.flatten()
     coords = torch.from_numpy(coords).to(device=device).float()
 
-    segmentName = str(segmentsOfInterest)
-
-    mask=movingImageMask.clone()*0
-    for s in segmentsOfInterest:
-        mask=mask+torch.where(movingImageMask == s, 1, 0)
-
-    m = meshing.surfaceMesh(mask[0], segmentName, device, workingDirectory, reuse=True)
-    vertices, simplices = m.getVerticesAndSimplicesSurface()
-    vertices = vertices.float()
-    simplices = simplices.int()
     verticesSegmentation=utils.assignPoints(device, vertices, movingImageMask, segmentsOfInterest, initialValue=10000).long()
 
     vertices = checkAffine(device, workingDirectory, vertices, verticesSegmentation)
@@ -50,153 +46,30 @@ def measure_selfIntersection3dVoxelBased(device,workingDirectory,voxelToMm=None,
 
     coordSel = coords.cpu().numpy()[wn > 1]
 
-    volume = coordSel.shape[0] * np.prod(voxelToMm.cpu().numpy())
-    print("volume of self intersection in cubic mm : ", str(volume))
-    print("number of self intersection : ", coordSel.shape[0])
-
+    if voxelToMm is not None:
+        volume = coordSel.shape[0] * np.prod(voxelToMm.cpu().numpy())
+    else:
+        volume = coordSel.shape[0]
     return volume
 
 
-def measure_selfIntersection3dVoxelBased_distanceToBoundaries(device,workingDirectory,voxelToMm=None,segmentsOfInterest=None):
-    """ POSTPROCESSING SELF-INTERSECTION
-    Calculates volumne/surface of self-intersections.
-    Use the same interpolators, integrators, geometric transformations with the same class variables as used in the optimization.
-    Set the following variables
+def measure_selfIntersection2d(device: str,workingDirectory: str,voxelToMm: Optional[Tensor]=None,segmentsOfInterest: Optional[list]=None,contour: Tensor=None)->Tensor:
+    """ Calculates the overlap from selfintersections in 2D. Object is input as contour.
         :param device: sets the computation device, see torch
         :type device: string
         :param workingDirectory: path to working directory, see docs
         :type workingDirectory: string
-        :param voxelToMm: voxel or pixel size to mm; used to scale the image plot; one entry corresponding to each image dimension;
-        :type voxelToMm: torch.tensor
-    """
-    # BASICS: load images
-    movingImageMask = torch.unsqueeze(torch.from_numpy(np.load(os.path.join(workingDirectory, "moving_mask.npy"))),
-                                      dim=0).to(device=device)
-
-    indices = np.indices(movingImageMask.cpu()[0].size())
-    coords = np.empty((np.prod(movingImageMask.cpu().size()), len(movingImageMask[0].cpu().size())))
-    for i, slide in enumerate(indices):
-        coords[:, i] = slide.flatten()
-    coords = torch.from_numpy(coords).to(device=device).float()
-
-    segmentName = str(segmentsOfInterest)
-
-    mask=movingImageMask.clone()*0
-    for s in segmentsOfInterest:
-        mask=mask+torch.where(movingImageMask == s, 1, 0)
-
-    m = meshing.surfaceMesh(mask[0], segmentName, device, workingDirectory, reuse=True)
-    vertices, simplices = m.getVerticesAndSimplicesSurface()
-    vertices = vertices.float()
-    simplices = simplices.int()
-    verticesSegmentation=utils.assignPoints(device, vertices, movingImageMask, segmentsOfInterest, initialValue=10000).long()
-
-    vertices = checkAffine(device, workingDirectory, vertices, verticesSegmentation)
-    vertices = checkNonrigid(device, workingDirectory, vertices, verticesSegmentation)
-
-    verticesNumpy = vertices.cpu().numpy().copy(order='C')
-    wn = igl.fast_winding_number_for_meshes(verticesNumpy, simplices.cpu().numpy(), coords.cpu().numpy())
-    wn = np.round(wn, decimals=1)
-
-    coordSel = coords.cpu().numpy()[wn > 1]
-    if coordSel.shape[0]>0:
-
-        coordSel=torch.from_numpy(coordSel).to(device=device)
-
-        verticesFissure, faces = igl.read_triangle_mesh(
-            os.path.join(workingDirectory, f"moving_fissure_{segmentsOfInterest}.stl"), 'float')
-
-        verticesFissure=torch.from_numpy(verticesFissure).to(device=device)
-        verticesFissureSegmentation=utils.assignPoints(device, verticesFissure, movingImageMask, segmentsOfInterest, initialValue=10000).long()
-
-        verticesFissure = checkAffine(device, workingDirectory, verticesFissure.float(), verticesFissureSegmentation)
-        verticesFissure = checkNonrigid(device, workingDirectory, verticesFissure, verticesFissureSegmentation)
-        coordSel=coordSel*voxelToMm
-        verticesFissure=verticesFissure*voxelToMm
-        coordSelDist, i, c = igl.signed_distance(coordSel.cpu().numpy(), verticesFissure.cpu().numpy(), faces)
-        coordSelDist=np.where(coordSelDist<0,0,coordSelDist)
-        print("distance to fissure of intersections",np.mean(coordSelDist),np.std(coordSelDist))
-        return coordSelDist
-    else:
-        return np.ones((10))*-1
-
-
-
-
-
-
-def measure_selfIntersection3dPointBased(device,workingDirectory,voxelToMm=None,segmentsOfInterest=None):
-    """ POSTPROCESSING SELF-INTERSECTION
-    Calculates volumne/surface of self-intersections.
-    Use the same interpolators, integrators, geometric transformations with the same class variables as used in the optimization.
-    Set the following variables
-        :param device: sets the computation device, see torch
-        :type device: string
-        :param workingDirectory: path to working directory, see docs
-        :type workingDirectory: string
-        :param voxelToMm: voxel or pixel size to mm; used to scale the image plot; one entry corresponding to each image dimension;
-        :type voxelToMm: torch.tensor
+        :param segmentsOfInterest: segmentations of interest list
+        :type segmentsOfInterest: list
+        :param voxelToMm: cell dimensions in mm
+        :type voxelToMm: torch.Tensor
+        :param contour: contour
+        :type contour: Tensor
+        :return : overlap
+        :rtype : Tensor
     """
     movingImageMask = torch.unsqueeze(torch.from_numpy(np.load(os.path.join(workingDirectory, "moving_mask.npy"))),
                                       dim=0).to(device=device)
-
-    indices = np.indices(movingImageMask.cpu()[0].size())
-
-
-    segmentName = str(segmentsOfInterest)
-
-    mask = movingImageMask.clone() * 0
-    for s in segmentsOfInterest:
-        mask = mask + torch.where(movingImageMask == s, 1, 0)
-
-    m = meshing.surfaceMesh(mask[0], segmentName, device, workingDirectory, reuse=True)
-    vertices, simplices = m.getVerticesAndSimplicesSurface()
-    vertices = vertices.float()
-    verticesOrig=vertices.clone()
-    simplices = simplices.int()
-    verticesSegmentation = utils.assignPoints(device, vertices, mask, movingImageMask, initialValue=10000)
-
-    vertices = checkAffine(device, workingDirectory, vertices, verticesSegmentation)
-    vertices = checkNonrigid(device, workingDirectory, vertices, verticesSegmentation)
-
-
-    intensityInterpolator = interpolation.cubic(device, torch.tensor([1., 1., 1.], device=device))
-
-    m = meshing.surfaceMesh(mask[0], segmentName, device, workingDirectory, reuse=True)
-    m.getVerticesAndSimplicesSurface()
-    s=utils.sdfCreator(device,workingDirectory=workingDirectory,reuse=True)
-    sdf=s.fromMesh(os.path.join(workingDirectory, "reuse", f"surface_mesh_segment_{segmentName}.stl"),mask)
-    grads=s.getGrads(sdf)
-
-    d=collisionDetection.selfintersectionDetection(verticesOrig,sdf,intensityInterpolator,grads,simplices,verticesOrig,1,device)
-    depth, intersectingVertices,selector,intersectingSimplices=d.intersectionsNodes(vertices)
-
-    numberOfIntersections=intersectingVertices.size(0)
-    print(f"number of self intersections: ", numberOfIntersections)
-    print(" sum of depth: ",depth)
-
-
-    return numberOfIntersections,depth
-
-
-
-
-def measure_selfIntersection2dContourBased(device,workingDirectory,voxelToMm=None,segmentsOfInterest=None):
-    """ POSTPROCESSING SELF-INTERSECTION
-    both measure and voisual because of how shapely detects selfintersections
-
-    """
-
-    #BASICS: load images
-    movingImageMask=torch.unsqueeze(torch.from_numpy(np.load(os.path.join(workingDirectory, "moving_mask.npy"))), dim=0).to(device=device)
-
-
-    mask=movingImageMask.clone()*0
-    for s in segmentsOfInterest:
-        mask=mask+torch.where(movingImageMask==s,1,0)
-
-
-    contour = torch.from_numpy(measure.find_contours((mask[0]).cpu().numpy(), 0.6)[0]).to(device=device)
     inter = interpolation.nearest(device, scale=torch.tensor([1., 1.], device=device))
     segmentation = inter(contour, movingImageMask)
 

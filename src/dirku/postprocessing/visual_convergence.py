@@ -4,13 +4,15 @@ import re
 import matplotlib.pyplot as plt
 import json
 from .postprocessing_utils import *
+from typing import Optional, Type, Union, Tuple
+from torch import Tensor
 
-def visual_convergence(workingDirectory,segmentsOfInterest=None):
-    """ POSTPROCESSING CONVERGENCE
-    Sample script to plot convergence.
-
+def visual_convergence(workingDirectory: str,segmentsOfInterest: Optional[list]=None):
+    """ Plots convergence.
         :param workingDirectory: path to working directory, see docs
         :type workingDirectory: string
+         :param segmentations: segmentations of interest list
+         :type segmentations: list
 
     """
     if os.path.exists(os.path.join(workingDirectory,"results", "transformation_affine.json")):

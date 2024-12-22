@@ -10,11 +10,7 @@ from typing import Optional, Type, Union, Tuple
 from torch import Tensor
 
 def measure_dice(device: str,workingDirectory: str,segmentsOfInterest: Optional[list]=None)->Tensor:
-    """ POSTPROCESSING DICE
-    Sample script for calculating the Dice-Sørensen index based on segmentation masks for pullback images.
-    Use the same interpolators, integrators, geometric transformations with the same class variables as used in the optimization.
-    For interpolation of mask, use either nearest neighbour interpolation or round result to integers.
-    Set the following variables
+    """ Calculates the Dice-Sørensen index based on segmentation masks for pullback images.
         :param device: sets the computation device, see torch
         :type device: str
         :param workingDirectory: path to working directory

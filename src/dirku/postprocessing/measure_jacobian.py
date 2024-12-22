@@ -11,21 +11,17 @@ from torch import Tensor
 
 
 def measure_jacobian(device: str,workingDirectory: str,voxelToMm: Optional[Tensor]=None,segmentsOfInterest: Optional[list]=None)->dict:
-    """ POSTPROCESSING NEGATIVE JACOBIANS.
-    Sample script for calculating the percentage of determinant of negative Jacobians. Uses finite differences.
-    Use the same interpolators, integrators, geometric transformations with the same class variables as used in the optimization.
-    For interpolation of mask, use either nearest neighbour interpolation or round result to integers.
-    Set the following variables
+    """ Calculates the jacobian of teh deformation field.
         :param device: sets the computation device, see torch
-        :type device: str
+        :type device: string
         :param workingDirectory: path to working directory, see docs
-        :type workingDirectory: str
-        :param voxelToMm: voxel or pixel size to mm; used to scale the image plot; one entry corresponding to each image dimension;
-        :type voxelToMm: torch.Tensor
-        :param segmentsOfInterest: segmentation integers that are to be measured
+        :type workingDirectory: string
+        :param segmentsOfInterest: segmentations of interest list
         :type segmentsOfInterest: list
-        :return: DICE
-        :rtype: Tensor
+        :param voxelSizes: cell dimensions in mm
+        :type voxelSizes: torch.Tensor
+        :return fields: dictionary of deformation field jacobians
+        :rtype fields: dict
     """
     movingImageMask=torch.unsqueeze(torch.from_numpy(np.load(os.path.join(workingDirectory, "moving_mask.npy"))), dim=0).to(device=device)
     fixedImageMask=torch.unsqueeze(torch.from_numpy(np.load(os.path.join(workingDirectory, "fixed_mask.npy"))), dim=0).to(device=device)

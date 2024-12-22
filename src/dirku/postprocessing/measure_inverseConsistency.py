@@ -6,22 +6,22 @@ import re
 import matplotlib.pyplot as plt
 import pickle
 from .postprocessing_utils import *
+from typing import Optional, Type, Union, Tuple
+from torch import Tensor
 
 
-
-def measure_inverseConsistency(device,workingDirectory,voxelToMm=None,segmentsOfInterest=None):
-    """ POSTPROCESSING INVERSE CONSISTENCY
-    Sample script to measure the inverse consistency.
-    Use the same interpolators, integrators, geometric transformations with the same class variables as used in the optimization.
-    Set the following variables
+def measure_inverseConsistency(device: str,workingDirectory: str,voxelToMm: Optional[list]=None,segmentsOfInterest: Optional[list]=None)->Tuple[Tensor,Tensor]:
+    """ Calculates the inverse consistency.
         :param device: sets the computation device, see torch
         :type device: string
         :param workingDirectory: path to working directory, see docs
         :type workingDirectory: string
-        :param dimension: if 3D registration, set with dimension should be displayed
-        :type dimension: int
-        :param slice: if 3D registration, set with slice in dimension should be displayed
-        :type slice: int
+        :param segmentsOfInterest: segmentations of interest list
+        :type segmentsOfInterest: list
+        :param voxelSizes: cell dimensions in mm
+        :type voxelSizes: torch.Tensor
+        :return : mean and standard deviation of inverse consistency
+        :rtype : Tensor,Tensor
     """
 
     #BASICS: load images

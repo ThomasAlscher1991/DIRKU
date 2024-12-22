@@ -8,16 +8,20 @@ import pickle
 import itertools
 import scipy
 from .postprocessing_utils import *
-def measure_shear(device,workingDirectory,voxelToMm=None,segmentsOfInterest=None):
-    """ POSTPROCESSING SHEAR
-    Sample script for calculating the shear stretch inside segments and along segment boundaries.
-    Use the same interpolators, integrators, geometric transformations with the same class variables as used in the optimization.
-    For interpolation of mask, use either nearest neighbour interpolation or round result to integers.
-    Set the following variables
+from typing import Optional, Type, Union, Tuple
+from torch import Tensor
+def measure_shear(device: str,workingDirectory: str,voxelToMm: Optional[list]=None,segmentsOfInterest: Optional[list]=None)->dict:
+    """ Calculates the maximum shear stretch.
         :param device: sets the computation device, see torch
         :type device: string
         :param workingDirectory: path to working directory, see docs
         :type workingDirectory: string
+        :param segmentsOfInterest: segmentations of interest list
+        :type segmentsOfInterest: list
+        :param voxelSizes: cell dimensions in mm
+        :type voxelSizes: torch.Tensor
+        :return shearBoundariesDict: dictionary of shear between segmentations
+        :rtype shearBoundariesDict: dict
     """
     # BASICS: load images
     movingImageMask = torch.unsqueeze(torch.from_numpy(np.load(os.path.join(workingDirectory, "moving_mask.npy"))),

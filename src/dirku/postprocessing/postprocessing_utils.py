@@ -59,18 +59,14 @@ def compute_gradient_central_diff2D(F: Tensor, dx: Optional[float]=1.0, dy: Opti
     return dFdx, dFdy
 
 def extract_segment_and_scale_JSON(file: str)->Tuple[str,str]:
-    """ For automated recognition of scale and segment in nonrigid result names.
+    """ For automated recognition of scale and segment in nonrigid result names for json files.
         Handles single integer segments, tuple segments, and 'None' segments
         :param file: file name of result
         :type file: str
-        :param dx: finite differences step in x direction
-        :type dx: float
-        :param dy: finite differences step in x direction
-        :type dy: float
-        :return dFdx: derivative in x
-        :rtype dFdx: torch.tensor
-        :return dFdy: derivative in y
-        :rtype dFdy: torch.Tensor
+        :return scale_values: segment
+        :rtype scale_values: str
+        :return segment_values: scale
+        :rtype segment_values: str
     """
     # Updated pattern to handle single integers, tuples, and the word 'None'
     pattern = r"transformation_nonrigid_segment_(?P<segment>\(\d+(?:, \d+)*\)|\d+|None)_scale_tensor\(\[(?P<scale>[0-9., ]+)\]\)\.json"
@@ -95,9 +91,15 @@ def extract_segment_and_scale_JSON(file: str)->Tuple[str,str]:
     else:
         return None, None
 
-def extract_segment_and_scale_NPY(file):
-    """ For automated recognition of scale and segment
+def extract_segment_and_scale_NPY(file: str)->Tuple[str,str]:
+    """ For automated recognition of scale and segment in nonrigid result names for npy files.
         Handles single integer segments, tuple segments, and 'None' segments
+        :param file: file name of result
+        :type file: str
+        :return scale_values: segment
+        :rtype scale_values: str
+        :return segment_values: scale
+        :rtype segment_values: str
     """
     # Updated pattern to handle single integers, tuples, and the word 'None'
     pattern = r"transformation_nonrigid_segment_(?P<segment>\(\d+(?:, \d+)*\)|\d+|None)_scale_tensor\(\[(?P<scale>[0-9., ]+)\]\)\.npy"
@@ -124,9 +126,12 @@ def extract_segment_and_scale_NPY(file):
         return scale_values, segment_values
     else:
         return None, None
-def extract_scale_NPY(file):
-    """ For automated recognition of scale and segment
-        Handles single integer segments, tuple segments, and 'None' segments
+def extract_scale_NPY(file: str)->str:
+    """ For automated recognition of scale in nonrigid result names for npy files.
+        :param file: file name of result
+        :type file: str
+        :return scale_values: segment
+        :rtype scale_values: str
     """
     # Updated pattern to handle single integers, tuples, and the word 'None'
     pattern = r"transformation_nonrigid_scale_tensor\(\[(?P<scale>[0-9., ]+)\]\)\.npy"
@@ -140,7 +145,19 @@ def extract_scale_NPY(file):
         return scale_values
     else:
         return None
-def checkAffine(device,workingDirectory,pts,segmentations=None):
+def checkAffine(device: str,workingDirectory: str,pts: Tensor,segmentations: Optional[list]=None)->Tensor:
+    """ Checks the results folder for affine transformations and applies them.
+         :param device: file name of result
+         :type device: str
+         :param workingDirectory: workingDirectory path
+         :type workingDirectory: str
+         :param pts: points to be transformed
+         :type pts: torch.Tensor
+         :param segmentations: segmentations of interest list
+         :type segmentations: list
+         :return pts: transformed points
+         :rtype pts: torch.Tensor
+     """
     if segmentations is not None:
         for segment in torch.unique(segmentations):
             if os.path.exists(os.path.join(workingDirectory, "results", f"transformation_affine_{segment}.npy")):
@@ -152,8 +169,6 @@ def checkAffine(device,workingDirectory,pts,segmentations=None):
                 affine = geometricTransformations.affineTransformation(ptsSegment)
                 ptsSegment = affine.apply(ptsSegment, affineMat)
                 pts[segmentations.flatten() == segment] = ptsSegment
-
-
     else:
         if os.path.exists(os.path.join(workingDirectory, "results", "transformation_affine.npy")):
             print("overall affine registration applied")
@@ -163,7 +178,19 @@ def checkAffine(device,workingDirectory,pts,segmentations=None):
             pts = affine.apply(pts, affineMat)
     return pts
 
-def checkNonrigid(device,workingDirectory,pts,segmentations=None):
+def checkNonrigid(device: str,workingDirectory: str,pts: Tensor,segmentations: Optional[list]=None)-> Tensor:
+    """ Checks the results folder for nonrigied transformations and applies them.
+         :param device: file name of result
+         :type device: str
+         :param workingDirectory: workingDirectory path
+         :type workingDirectory: str
+         :param pts: points to be transformed
+         :type pts: torch.Tensor
+         :param segmentations: segmentations of interest list
+         :type segmentations: list
+         :return pts: transformed points
+         :rtype pts: torch.Tensor
+     """
     if segmentations is not None:
         files = os.listdir(os.path.join(workingDirectory, "results"))
         filtered_files = [file for file in files if
@@ -210,7 +237,19 @@ def checkNonrigid(device,workingDirectory,pts,segmentations=None):
             pts = nrDeformation.apply(pts, velocityField)
     return pts
 
-def checkAffineInverse(device,workingDirectory,pts,segmentations=None):
+def checkAffineInverse(device: str,workingDirectory: str,pts: Tensor,segmentations: Optional[list]=None)->Tensor:
+    """ Checks the results folder for affine transformations and applies the inverse.
+         :param device: file name of result
+         :type device: str
+         :param workingDirectory: workingDirectory path
+         :type workingDirectory: str
+         :param pts: points to be transformed
+         :type pts: torch.Tensor
+         :param segmentations: segmentations of interest list
+         :type segmentations: list
+         :return pts: transformed points
+         :rtype pts: torch.Tensor
+     """
     if segmentations is not None:
         for segment in torch.unique(segmentations):
             if os.path.exists(os.path.join(workingDirectory, "results", f"transformation_affine_{segment}.npy")):
@@ -223,8 +262,6 @@ def checkAffineInverse(device,workingDirectory,pts,segmentations=None):
                 affine = geometricTransformations.affineTransformation(ptsSegment)
                 ptsSegment = affine.apply(ptsSegment, affineMat)
                 pts[segmentations.flatten() == segment] = ptsSegment
-
-
     else:
         if os.path.exists(os.path.join(workingDirectory, "results", "transformation_affine.npy")):
             print("overall inverse affine registration applied")
@@ -236,7 +273,19 @@ def checkAffineInverse(device,workingDirectory,pts,segmentations=None):
             pts = affine.apply(pts, affineMat)
     return pts
 
-def checkNonrigidInverse(device,workingDirectory,pts,segmentations=None):
+def checkNonrigidInverse(device: str,workingDirectory: str,pts: Tensor,segmentations: Optional[list]=None)-> Tensor:
+    """ Checks the results folder for nonrigied transformations and applies the inverse.
+         :param device: file name of result
+         :type device: str
+         :param workingDirectory: workingDirectory path
+         :type workingDirectory: str
+         :param pts: points to be transformed
+         :type pts: torch.Tensor
+         :param segmentations: segmentations of interest list
+         :type segmentations: list
+         :return pts: transformed points
+         :rtype pts: torch.Tensor
+     """
     if segmentations is not None:
         files = os.listdir(os.path.join(workingDirectory, "results"))
         filtered_files = [file for file in files if
