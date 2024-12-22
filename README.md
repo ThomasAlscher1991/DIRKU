@@ -54,25 +54,12 @@ For time integration, both explicit and implicit methods are available. DIRKU su
 
 Regularizers or similarity measures can be integrated either at the end of the time interval (as main terms) or at every time step (as regularization terms).
 
-# Regularization
+## Regularization
 DIRKU provides simple L2 regularization, linear operators, and Saint-Venant Kirchhoff regularization. A major focus is on physics-based constraints, specifically collision detection.
 
 Collision detection is implemented for both inter-collision (between two distinct bodies) and intra-collision (within a single body). Meshes are required for both types of collision detection: 2D triangle meshes for 2D collisions, and 3D tetrahedral meshes for 3D collisions.
 
 One solution for mesh generation is available through the [meshing](https://github.com/ThomasAlscher1991/meshing) repository.
-
-
-
-
-TO DO:
-document postprocessing
-create 3d test cases
-write sampel scripts
-	use stochastic points and optimization
-write ci github
-create lung fissure repo and link to here
-simplifiy stochastic approaches
-
 
 ## Folder structure
 Users are free to organize their data in any structure they prefer. However, we provide a sample structure that may simplify the process if followed.
