@@ -103,7 +103,7 @@ def measure_selfIntersection2d(device: str,workingDirectory: str,voxelToMm: Opti
         ax.fill(y, x, facecolor="green", edgecolor="green", alpha=1)
         ax.set_xlim([10, 90])  # Limit x-axis to range [30, 70]
         ax.set_ylim([20, 80])
-        plt.savefig("/home/thomas/Pictures/synthetic_SI/" + f'synthetic_fixed_SI_{i}_ccdir.eps', format='eps',
+        plt.savefig(workingDirectory + f'/results/synthetic_fixed_SI_{i}_ccdir.eps', format='eps',
                     bbox_inches='tight')
         plt.close()
 

@@ -1,6 +1,6 @@
 """
 Created on Fri 2nc Feb 2024
-@author: Thomas Alscher, NHMD
+@author: Thomas Alscher
 """
 
 from setuptools import setup, find_packages
