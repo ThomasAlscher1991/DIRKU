@@ -18,7 +18,7 @@ navigate to src and install dirku
 #Components
 The core concept is widely used in iamge registration.
 an energy functional describes the registration problem 
-$$\Phi = \argmin_{\Phi} \int_{\Omega}M(I(X), J(\Phi(X)) +S(\Phi(X))dX$$
+$$\Phi = argmin_{\Phi} \int_{\Omega}M(I(X), J(\Phi(X)) +S(\Phi(X))dX$$
 
 TO DO:
 document postprocessing
