@@ -4,7 +4,7 @@ import torch
 import numpy as np
 import os, glob, tqdm
 import json
-from src.dirku import utils, interpolation, geometricTransformations, similarityMeasure, optimization, \
+from dirku import utils, interpolation, geometricTransformations, similarityMeasure, optimization, \
     numericalIntegration, collisionDetection, regularization,postprocessing
 import pickle
 import matplotlib.tri as mtri
