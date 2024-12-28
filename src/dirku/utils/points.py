@@ -4,7 +4,7 @@ from scipy import ndimage
 import math
 import numpy as np
 import skfmm
-from src.dirku import interpolation
+from ..interpolation import *
 from typing import Optional, Type, Union, Tuple
 from torch import Tensor
 
@@ -108,14 +108,14 @@ def assignPoints(device: str,pts: Tensor,mask: Tensor,segments: Tensor,initialVa
     segmentMasks=[]
     for s in segments:
         segmentMasks.append(torch.where(mask == s, 1, 0))
-    interTemp = interpolation.nearest(device, torch.tensor([1., 1., 1.], device=device))
+    interTemp = nearest(device, torch.tensor([1., 1., 1.], device=device))
     s = interTemp(pts, mask)
     s = s.flatten()
     set_Elements = set(torch.unique(s).tolist())
     unique_elements = set_Elements.symmetric_difference(segments)
     if len(unique_elements) != 0:
         wrongVals = unique_elements
-        inter = interpolation.linear(device, torch.tensor([1., 1., 1.], device=device))
+        inter = linear(device, torch.tensor([1., 1., 1.], device=device))
         sdfs=[]
         for m in segmentMasks:
             m = torch.where(m == 1, -1, 1)
