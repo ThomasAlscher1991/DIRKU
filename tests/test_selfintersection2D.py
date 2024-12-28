@@ -176,7 +176,7 @@ def deformable_ccdir(device, workingDirectory, segmentTuple,simCoef=1,lr=1,colCo
             pickle.dump(nrDeformationSegment2, output_file)
     return shared1,shared2
 
-def main():
+def test_main():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     workingDirectory = os.path.join(current_dir, "syntheticData/selfintersection2D")
     device = "cuda:0"
@@ -217,10 +217,10 @@ def main():
 
         #postprocessing.visual_pullback(device, workingDirectory, voxelToMmRatio, segmentTuple)
         #postprocessing.visual_shear(device, workingDirectory, voxelToMmRatio, segmentTuple)
-        postprocessing.visual_vector(device, workingDirectory, voxelToMmRatio, segmentTuple)
+        #postprocessing.visual_vector(device, workingDirectory, voxelToMmRatio, segmentTuple)
 
 
-main()
+
 
 
 
