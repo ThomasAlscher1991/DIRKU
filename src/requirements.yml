@@ -13,7 +13,7 @@ dependencies:
   - pip:
     - torch
     - torchvision
-    - torchaudiokkkkk
+    - torchaudio
     - libigl
     - shapely
     - pytest
