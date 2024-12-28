@@ -159,7 +159,6 @@ def test_main():
     #postprocessing.visual_shear(device,workingDirectory,voxelToMm,[1,2])
     #postprocessing.visual_vector(device,workingDirectory,voxelToMm,[1,2])
 
-main()
 
 
 
