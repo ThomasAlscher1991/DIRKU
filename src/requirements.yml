@@ -16,4 +16,5 @@ dependencies:
     - torchaudiokkkkk
     - libigl
     - shapely
+    - pytest
 
