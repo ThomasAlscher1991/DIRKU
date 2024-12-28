@@ -117,7 +117,7 @@ def deformable_piecewise(device, workingDirectory, segment,voxelToMmRatio,simCoe
                   'wb') as output_file:
             pickle.dump(nrDeformationReg, output_file)
 
-def main():
+def test_main():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     workingDirectory = os.path.join(current_dir, "syntheticData/intersection2D")
     device = "cpu"
@@ -154,10 +154,10 @@ def main():
         print(i, dictIntersection[i])
 
     #postprocessing.measure_shear(device,workingDirectory,voxelToMm,[1,2])
-    postprocessing.visual_grid(device,workingDirectory,voxelToMm,[1,2])
+    #postprocessing.visual_grid(device,workingDirectory,voxelToMm,[1,2])
     #postprocessing.visual_pullback(device,workingDirectory,voxelToMm,[1,2])
     #postprocessing.visual_shear(device,workingDirectory,voxelToMm,[1,2])
-    #ostprocessing.visual_vector(device,workingDirectory,voxelToMm,[1,2])
+    #postprocessing.visual_vector(device,workingDirectory,voxelToMm,[1,2])
 
 main()
 
