@@ -1,0 +1,36 @@
+name: Python Package using Conda
+
+on: [push]
+
+jobs:
+  build-ubuntu:
+    runs-on: ubuntu-latest  # Specifies that this job will run on Ubuntu
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Miniconda
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        miniconda-version: 'latest'
+        auto-update-conda: true  # Ensure Conda is updated
+
+    - name: Initialize Conda
+      run: |
+        conda init bash  # Initialize Conda for bash (on Ubuntu)
+        source ~/.bashrc  # Source bashrc to apply conda init changes
+        conda env create --name DIRKU --file requirements.yml  # Create the environment
+        conda activate DIRKU  # Activate the Conda environment
+        echo "Conda environment DIRKU activated."
+        pip install src/. 
+        export PYTHONPATH=$PYTHONPATH:$(pwd)
+        echo "PYTHONPATH set to $(pwd)"
+
+    - name: Run tests
+      run: |
+        conda init bash  # Initialize Conda for bash (on Ubuntu)
+        source ~/.bashrc  # Source bashrc to apply conda init changes
+        conda activate DIRKU  # Activate the Conda environment
+        echo "Conda environment DIRKU for testing activated."
+        pip list
+        pytest --maxfail=1 --disable-warnings -q  # Run pytest with options to limit output and failures
