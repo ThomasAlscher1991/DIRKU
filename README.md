@@ -85,4 +85,5 @@ workingDirectory
 PlaceHolder Pictures
 
 ## Acknowldegments
+To Sune Darkner for the fast and versatile B-Spline approximation. 
 To Dorian Depriester for his algorithm on tetrahedron-point-check which inspired our formulation.
