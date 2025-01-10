@@ -22,6 +22,7 @@ jobs:
         conda env create --name DIRKU --file src/requirements.yml  # Create the environment
         conda activate DIRKU  # Activate the Conda environment
         echo "Conda environment DIRKU activated."
+        python --version
         pip install src/. 
         export PYTHONPATH=$PYTHONPATH:$(pwd)
         echo "PYTHONPATH set to $(pwd)"
