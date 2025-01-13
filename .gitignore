@@ -2,3 +2,4 @@
 src/build
 src/dist
 src/dirku.egg-info
+/.idea

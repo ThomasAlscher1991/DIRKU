@@ -87,9 +87,9 @@ def deformable_ccdir(device, workingDirectory, segmentTuple,simCoef=1,lr=1,colCo
 
 
         nrDeformationSegment1 = geometricTransformations.nonrigidDeformation(points1, integrator,
-                                                                      vfInterpolator,pointMask1)
+                                                                      vfInterpolator)
         nrDeformationSegment2 = geometricTransformations.nonrigidDeformation(points2, integrator,
-                                                                      vfInterpolator,pointMask2)
+                                                                      vfInterpolator)
 
         simMeasurer1 = similarityMeasure.ssd(points1, evalPointsIntensitySegment1, fixedImage,
                                              intensityInterpolator, coef=simCoef ,pointsMask=pointMask1, pointsMaskLabel=1)
@@ -130,8 +130,8 @@ def deformable_ccdir(device, workingDirectory, segmentTuple,simCoef=1,lr=1,colCo
         optimizer2 = optimization.gradientDescentBacktracking([decisionVariablesSegment2], lr=0.001, max_iters=5)
 
         rho = 10
-        closure1 = optimization.closureADMM(optimizer1, nrDeformationSegment1, mainTerm=c1, regTerms=reg, rho=rho)
-        closure2 = optimization.closureADMM(optimizer2, nrDeformationSegment2, mainTerm=c2, regTerms=reg, rho=rho)
+        closure1 = optimization.closureADMM(optimizer1, nrDeformationSegment1, mainTerms=c1, regTerms=reg, rho=rho)
+        closure2 = optimization.closureADMM(optimizer2, nrDeformationSegment2, mainTerms=c2, regTerms=reg, rho=rho)
 
 
 
@@ -179,7 +179,7 @@ def deformable_ccdir(device, workingDirectory, segmentTuple,simCoef=1,lr=1,colCo
 def test_main():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     workingDirectory = os.path.join(current_dir, "syntheticData/selfintersection2D")
-    device = "cuda:0"
+    device = "cpu"
     voxelToMmRatio = torch.tensor([1.,1.], device=device)
 
     if os.path.exists(os.path.join(workingDirectory, 'results/')):
@@ -194,27 +194,24 @@ def test_main():
 
     segmentTuples = [(1, 2)]
     for segmentTuple in segmentTuples:
-
-
-
         shared1, shared2=deformable_ccdir(device, workingDirectory, segmentTuple, simCoef=1, lr=0.0001,colCoef=10000)
 
-        #postprocessing.visual_convergence(workingDirectory,segmentTuple)
-        #postprocessing.visual_grid(device, workingDirectory, voxelToMmRatio, segmentTuple)
+
         fieldsDet = postprocessing.measure_jacobian(device, workingDirectory, voxelToMm=voxelToMmRatio,segmentsOfInterest=segmentTuple)
         print("detJac")
         for key in fieldsDet:
             f = fieldsDet[key]
             f = np.array(f)
             print(key, np.sum(np.where(f <= 0, 1, 0)))
-        dice=postprocessing.measure_dice(device, workingDirectory, voxelToMm=voxelToMmRatio,segmentsOfInterest=segmentTuple)
+        dice=postprocessing.measure_dice(device, workingDirectory, segmentsOfInterest=segmentTuple)
         print("dice",dice)
         icMean, icStd, icTensor = postprocessing.measure_inverseConsistency(device, workingDirectory,voxelToMm=voxelToMmRatio,segmentsOfInterest=segmentTuple)
         print("ic", icMean, icStd)
 
         shearBoundariesDict = postprocessing.measure_shear(device, workingDirectory, voxelToMm=voxelToMmRatio,segmentsOfInterest=segmentTuple)
-        postprocessing.measure_selfIntersection2dContourBased(device,workingDirectory,voxelToMm=voxelToMmRatio,segmentsOfInterest=segmentTuple)
-
+        postprocessing.measure_selfIntersection2d(device,workingDirectory,voxelToMm=voxelToMmRatio,segmentsOfInterest=segmentTuple)
+        #postprocessing.visual_convergence(workingDirectory,segmentTuple)
+        #postprocessing.visual_grid(device, workingDirectory, voxelToMmRatio, segmentTuple)
         #postprocessing.visual_pullback(device, workingDirectory, voxelToMmRatio, segmentTuple)
         #postprocessing.visual_shear(device, workingDirectory, voxelToMmRatio, segmentTuple)
         #postprocessing.visual_vector(device, workingDirectory, voxelToMmRatio, segmentTuple)

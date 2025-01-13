@@ -1,4 +1,6 @@
 import itertools
+
+import skimage.measure
 from shapely.geometry import Polygon
 from skimage import measure
 import torch
@@ -71,14 +73,15 @@ def measure_intersection2d(device: str,workingDirectory: str,segmentsOfInterest:
         :return : overlap
         :rtype : Tensor
     """
-    movingImage=torch.unsqueeze(torch.from_numpy(np.load(os.path.join(workingDirectory, "moving.npy"))), dim=0).to(device=device)
-    indices = np.indices(movingImage.cpu()[0].size())
-    coords = np.empty((np.prod(movingImage.cpu().size()), len(movingImage[0].cpu().size())))
+    movingImageMask=torch.unsqueeze(torch.from_numpy(np.load(os.path.join(workingDirectory, "moving_mask.npy"))), dim=0).to(device=device)
+    indices = np.indices(movingImageMask.cpu()[0].size())
+    coords = np.empty((np.prod(movingImageMask.cpu().size()), len(movingImageMask[0].cpu().size())))
     for i, slide in enumerate(indices):
         coords[:, i] = slide.flatten()
     contours=[]
     for i,segment in enumerate(segmentsOfInterest):
-        contour = contours[i]
+        contour=skimage.measure.find_contours(torch.where(movingImageMask[0]==segment,1,0).cpu().numpy(),level=0.5)[0]
+        contour=torch.from_numpy(contour).to(device=device)
         ptsSegmentation = torch.ones(contour.size(0), dtype=torch.bool) * segment
         contour = checkAffine(device, workingDirectory, contour, ptsSegmentation)
         contour = checkNonrigid(device, workingDirectory, contour, ptsSegmentation)

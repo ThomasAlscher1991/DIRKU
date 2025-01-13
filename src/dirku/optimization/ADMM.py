@@ -118,7 +118,7 @@ class closureADMM():
         self.regTerms=regTerms
         self.transformer=transformer
 
-    def __call__(self,decisionVariables: Tensor,decisionVariablesCoef: float,fixedDecisionVariables: Tensor,fixedDecisionVariablesCoef: float,constrainer: Type[constrainerEulerianADMM,constrainerLagrangianADMM])->Tensor:
+    def __call__(self,decisionVariables: Tensor,decisionVariablesCoef: float,fixedDecisionVariables: Tensor,fixedDecisionVariablesCoef: float,constrainer: Union[Type[constrainerEulerianADMM],Type[constrainerLagrangianADMM]])->Tensor:
         """ Initiates the forward pass for ADMM. In case of gradients switched on, also zeros the gradients first.
                 :param decisionVariables: tensor with decision variables
                 :type decisionVariables: torch.Tensor

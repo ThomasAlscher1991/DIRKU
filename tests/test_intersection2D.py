@@ -4,7 +4,7 @@ import os, glob, tqdm
 import json
 import pickle
 from dirku import utils, interpolation, geometricTransformations, similarityMeasure, optimization, \
-    numericalIntegration, collisionDetection, regularization,meshing,postprocessing
+    numericalIntegration, collisionDetection, regularization,postprocessing
 
 def deformable_piecewise(device, workingDirectory, segment,voxelToMmRatio,simCoef=1,colCoef=1,dilation=None):
     # BASICS: load images
@@ -22,15 +22,10 @@ def deformable_piecewise(device, workingDirectory, segment,voxelToMmRatio,simCoe
     movingImage = (movingImage / max) * 1
     fixedImage = (fixedImage / max) * 1
 
-
-
-
-
-
     s = utils.sdfCreator(device,reuse=False,workingDirectory=workingDirectory,segmentName=segment)
-    mask1=torch.where(fixedImageMask==segment,1,0)
-    mask0=torch.where(fixedImageMask==0,1,0)
-    mask=mask1+mask0
+    mask1=torch.where(fixedImageMask==segment,0,1)
+    mask0=torch.where(fixedImageMask==0,0,1)
+    mask=mask1*mask0
     sdf=s.fromMask(torch.where(mask==1,1,0),voxelSizes=voxelToMmRatio)
 
     intensityInterpolator = interpolation.cubic(device, torch.tensor([1., 1.], device=device))
@@ -58,16 +53,15 @@ def deformable_piecewise(device, workingDirectory, segment,voxelToMmRatio,simCoe
 
         ###LDDMM
 
-        c1=[simMeasurer]
+        """c1=[simMeasurer]
         reg1 =[]
-        optimizer1 = optimization.gradientDescentBacktracking([decisionVariablesReg], lr=0.001, max_iters=5)#0.000001
-        closure1 = optimization.closureGradientDescent(optimizer1, nrDeformationReg, mainTerm=c1, regTerms=reg1)
-        dict=optimization.algorithmGradientDescent(10,optimizer1,closure1,decisionVariablesReg)
-
+        optimizer1 = optimization.gradientDescentBacktracking([decisionVariablesReg], lr=0.001, max_iters=5)
+        closure1 = optimization.closureGradientDescent(optimizer1, nrDeformationReg, mainTerms=c1, regTerms=reg1)
+        dict=optimization.algorithmGradientDescent(10,optimizer1,closure1,decisionVariablesReg)"""
 
 
         ##CCDIR
-        """decisionVariablesCol = utils.getGridPoints(movingImageMask, scale, 10)
+        decisionVariablesCol = utils.getGridPoints(movingImageMask, scale, 10)
         decisionVariablesCol.requires_grad = True
 
         nrDeformationCol = geometricTransformations.nonrigidDeformation(evalPoints, integrator,
@@ -80,18 +74,19 @@ def deformable_piecewise(device, workingDirectory, segment,voxelToMmRatio,simCoe
         reg1 =[]
         reg2 =[]
 
-        optimizer1 = optimization.gradientDescentBacktracking([decisionVariablesReg], lr=0.001, max_iters=5)#0.000001
+        optimizer1 = optimization.gradientDescentBacktracking([decisionVariablesReg], lr=0.001, max_iters=5)
         optimizer2 = optimization.gradientDescentBacktracking([decisionVariablesCol], lr=0.001, max_iters=5)
 
         rho = 0.5
 
-        closure1 = optimization.closureADMM(optimizer1, nrDeformationReg, mainTerm=c1, regTerms=reg1, rho=rho)
-        closure2 = optimization.closureADMM(optimizer2, nrDeformationCol, mainTerm=c2, regTerms=reg2, rho=rho)
+        closure1 = optimization.closureADMM(optimizer1, nrDeformationReg, mainTerms=c1, regTerms=reg1, rho=rho)
+        closure2 = optimization.closureADMM(optimizer2, nrDeformationCol, mainTerms=c2, regTerms=reg2, rho=rho)
 
         consti = optimization.constrainerEulerianADMM(torch.zeros(decisionVariablesCol.size(),device=device),torch.zeros(decisionVariablesCol.size(),device=device),1,-1)
-        dict = optimization.algorithmADMM( 100, 2, consti, optimizer1, optimizer2, closure1,
+        dict = optimization.algorithmADMM( 10, 2, consti, optimizer1, optimizer2, closure1,
                                                           closure2, decisionVariablesReg,
-                                                          decisionVariablesCol, rho)"""
+                                                          decisionVariablesCol, rho)
+
 
         evalPoints = nrDeformationReg.apply(evalPoints, decisionVariablesReg.data.detach())
 
@@ -136,24 +131,23 @@ def test_main():
 
     for segment in [1,2]:
         pass
-        deformable_piecewise(device, workingDirectory, segment, voxelToMm, simCoef=100000, colCoef=21500000,dilation=None)#21000000 zu wenig (0.009504350587278113) # bissl zu viel; right one:21500000
-    #postprocessing.visual_convergence(workingDirectory,[1,2])
-    dice=postprocessing.measure_dice(device,workingDirectory,voxelToMm,[1,2])
+        deformable_piecewise(device, workingDirectory, segment, voxelToMm, simCoef=100000, colCoef=21500000,dilation=None)
+    dice=postprocessing.measure_dice(device,workingDirectory,segmentsOfInterest=[1,2])
     print("dice",dice)
-    fields=postprocessing.measure_jacobian(device,workingDirectory,voxelToMm,[1,2])
+    fields=postprocessing.measure_jacobian(device,workingDirectory,voxelToMm,segmentsOfInterest=[1,2])
     print("detJac")
     for key in fields:
         f=fields[key]
         f=np.array(f)
         print(key,np.sum(np.where(f<=0,1,0)))
-    icMean,icStd,_=postprocessing.measure_inverseConsistency(device,workingDirectory,voxelToMm,[1,2])
+    icMean,icStd,_=postprocessing.measure_inverseConsistency(device,workingDirectory,voxelToMm,segmentsOfInterest=[1,2])
     print("ic",icMean,icStd)
-    dictIntersection=postprocessing.measure_intersection2d(device,workingDirectory,voxelToMm,[1,2])
+    dictIntersection=postprocessing.measure_intersection2d(device,workingDirectory,segmentsOfInterest=[1,2])
     print("intersection2D")
     for i in dictIntersection:
         print(i, dictIntersection[i])
-
-    #postprocessing.measure_shear(device,workingDirectory,voxelToMm,[1,2])
+    #postprocessing.measure_shear(device,workingDirectory,segmentsOfInterest=[1,2])
+    #postprocessing.visual_convergence(workingDirectory,[1,2])
     #postprocessing.visual_grid(device,workingDirectory,voxelToMm,[1,2])
     #postprocessing.visual_pullback(device,workingDirectory,voxelToMm,[1,2])
     #postprocessing.visual_shear(device,workingDirectory,voxelToMm,[1,2])

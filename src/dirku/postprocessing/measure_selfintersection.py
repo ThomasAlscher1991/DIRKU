@@ -1,5 +1,5 @@
 from skimage import measure
-from .. import  geometricTransformations,  collisionDetection,utils, interpolation,meshing
+from .. import  geometricTransformations,  collisionDetection,utils, interpolation
 import matplotlib.pyplot as plt
 import igl
 from .postprocessing_utils import *
@@ -7,7 +7,7 @@ from shapely.geometry import LineString, Polygon
 from shapely.ops import polygonize, unary_union
 from typing import Optional, Type, Union, Tuple
 from torch import Tensor
-
+import skimage
 def measure_selfIntersection3d(device: str,workingDirectory: str,voxelToMm: Optional[Tensor]=None,segmentsOfInterest: Optional[Tensor]=None,vertices: Tensor=None,simplices: Tensor=None)->Tensor:
     """ Calculates the overlap from selfintersections in 3D. Object is input as vertex and simplex collection.
         :param device: sets the computation device, see torch
@@ -53,7 +53,7 @@ def measure_selfIntersection3d(device: str,workingDirectory: str,voxelToMm: Opti
     return volume
 
 
-def measure_selfIntersection2d(device: str,workingDirectory: str,voxelToMm: Optional[Tensor]=None,segmentsOfInterest: Optional[list]=None,contour: Tensor=None)->Tensor:
+def measure_selfIntersection2d(device: str,workingDirectory: str,voxelToMm: Optional[Tensor]=None,segmentsOfInterest: Optional[list]=None)->Tensor:
     """ Calculates the overlap from selfintersections in 2D. Object is input as contour.
         :param device: sets the computation device, see torch
         :type device: string
@@ -63,14 +63,24 @@ def measure_selfIntersection2d(device: str,workingDirectory: str,voxelToMm: Opti
         :type segmentsOfInterest: list
         :param voxelToMm: cell dimensions in mm
         :type voxelToMm: torch.Tensor
-        :param contour: contour
-        :type contour: Tensor
         :return : overlap
         :rtype : Tensor
     """
     movingImageMask = torch.unsqueeze(torch.from_numpy(np.load(os.path.join(workingDirectory, "moving_mask.npy"))),
                                       dim=0).to(device=device)
     inter = interpolation.nearest(device, scale=torch.tensor([1., 1.], device=device))
+    movingImageMaskCont = torch.from_numpy(np.load(os.path.join(workingDirectory, "moving_mask.npy"))).to(device=device)
+    mask=torch.zeros(movingImageMaskCont.size(),device=device)
+
+    for segment in segmentsOfInterest:
+        maskTemp=torch.where(movingImageMaskCont==segment,1,0).to(device=device)
+        mask=mask+maskTemp
+    print(mask.size())
+
+    contour=skimage.measure.find_contours(mask.cpu().numpy(),level=0.5)[0]
+    contour=torch.from_numpy(contour).to(device=device)
+
+
     segmentation = inter(contour, movingImageMask)
 
     contour = checkAffine(device, workingDirectory, contour, segmentation)
