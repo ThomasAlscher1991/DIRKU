@@ -19,7 +19,7 @@ jobs:
       run: |
         conda init bash  # Initialize Conda for bash (on Ubuntu)
         source ~/.bashrc  # Source bashrc to apply conda init changes
-        conda env create --name DIRKU --file src/requirements_conda.yml  # Create the environment
+        conda env create --name DIRKU --file src/requirements.yml  # Create the environment
         conda activate DIRKU  # Activate the Conda environment
         echo "Conda environment DIRKU activated."
         python --version
