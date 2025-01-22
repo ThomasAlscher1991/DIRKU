@@ -2,4 +2,6 @@
 src/build
 src/dist
 src/dirku.egg-info
+src/__pycache__
+tests/__pycache__
 /.idea

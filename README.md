@@ -11,21 +11,43 @@ Moreover, DIRKU includes post-processing capabilities for further refinement.
 
 All functionality is available for 2D and 3D cases.
 # How to install
-The easiest way to use DIRKU is through Conda, though Git is also required for cloning the repository.
+
+NOTE: Any automatic installation will install PyTorch in its base configuration. If you are interested to use PyTorch's GPU functionality, install it separately according to your [specs](https://pytorch.org/get-started/locally/).
+
+There are two ways to install DIRKU: via Conda or PyPI.
+
+## Conda
+Some may prefer Conda environments, so here is the walkthrough.
+
 Clone the repository:
 
  ```git clone https://github.com/ThomasAlscher1991/DIRKU.git```
 
 Navigate to the downloaded directory and enter DIRK/src.
+
 Set up a Conda environment and install the dependencies:
 
-```conda env create -name DIRKU --file requirements.yml ```
+```conda env create --name DIRKU --file requirements.yml ```
 
 Once the environment is set up, navigate to the src folder and install DIRKU:
 
 ```pip install .```
 
-# Components
+## PyPI
+Create an environment and make sure the python version is correct.
+
+```python -m venv DIRKU``
+
+Activate environment
+
+``` source DIRKU/bin/activate```
+
+Run
+
+```pip install dirku```
+
+
+# ComponentsNavigate to the downloaded directory and enter DIRK/src.
 The core concept of DIRKU is built upon widely used techniques in image registration. The problem is formulated using an energy functional, which is minimized to achieve the desired transformation.
 
 The energy functional is expressed as: Φ=arg⁡min⁡Φ∫ΩM(I(X),J(Φ(X)))+S(Φ(X)) dXΦ=argminΦ​∫Ω​M(I(X),J(Φ(X)))+S(Φ(X))dX

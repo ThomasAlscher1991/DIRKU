@@ -8,9 +8,31 @@ name = "dirku"
 version = "1.0.0"
 description = "Deformable image registration framework."
 readme = "README.md"
+license = {text="CC-BY-SA-3.0"}
 authors = [
   {name = "Thomas Alscher", email = "alscher@di.ku.dk"}
+]
+requires-python = ">=3.9,<3.13"
+dependencies = [
+    "pip",
+    "tqdm",
+    "numpy",
+    "matplotlib",
+    "scikit-fmm",
+    "setuptools",
+    "scikit-image",
+    "libigl",
+    "shapely",
+    "pytest",
+    "torch",
+    "torchvision",
+    "torchaudio"
 ]
 
 [project.urls]
 homepage = "https://github.com/ThomasAlscher1991/DIRKU"
+
+
+
+
+

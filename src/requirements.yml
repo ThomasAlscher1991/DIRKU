@@ -4,18 +4,4 @@ channels:
   - conda-forge
 dependencies:
   - python>=3.9,<3.13 
-  - pip
-  - tqdm
-  - numpy
-  - matplotlib
-  - scikit-fmm
-  - setuptools
-  - scikit-image
-  - pip:
-    - torch
-    - torchvision
-    - torchaudio
-    - libigl
-    - shapely
-    - pytest
 
