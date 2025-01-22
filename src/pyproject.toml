@@ -10,7 +10,7 @@ description = "Deformable image registration framework."
 readme = "README.md"
 license = {text="CC-BY-SA-3.0"}
 authors = [
-  {name = "Thomas Alscher", email = "alscher@di.ku.dk"}
+  {name = "Thomas Alscher", email = "thomasalscher91@gmail.com"}
 ]
 requires-python = ">=3.9,<3.13"
 dependencies = [
