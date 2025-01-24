@@ -4,4 +4,6 @@ src/dist
 src/dirku.egg-info
 src/__pycache__
 tests/__pycache__
+tests/syntheticData/intersection2D/results
+tests/syntheticData/selfintersection2D/results
 /.idea

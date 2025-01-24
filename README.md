@@ -37,7 +37,7 @@ Once the environment is set up, navigate to the src folder and install DIRKU:
 
 Create an environment and make sure the python version is correct.
 
-```python -m venv DIRKU``
+```python -m venv DIRKU```
 
 Activate environment
 
