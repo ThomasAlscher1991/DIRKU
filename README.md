@@ -34,6 +34,7 @@ Once the environment is set up, navigate to the src folder and install DIRKU:
 ```pip install .```
 
 ## PyPI
+
 Create an environment and make sure the python version is correct.
 
 ```python -m venv DIRKU``
@@ -47,7 +48,7 @@ Run
 ```pip install dirku```
 
 
-# ComponentsNavigate to the downloaded directory and enter DIRK/src.
+# Components
 The core concept of DIRKU is built upon widely used techniques in image registration. The problem is formulated using an energy functional, which is minimized to achieve the desired transformation.
 
 The energy functional is expressed as: Φ=arg⁡min⁡Φ∫ΩM(I(X),J(Φ(X)))+S(Φ(X)) dXΦ=argminΦ​∫Ω​M(I(X),J(Φ(X)))+S(Φ(X))dX
