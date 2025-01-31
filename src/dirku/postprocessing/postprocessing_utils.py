@@ -222,7 +222,7 @@ def checkNonrigid(device: str,workingDirectory: str,pts: Tensor,segmentations: O
         filtered_files = [file for file in files if
                           file.startswith("transformation_nonrigid") and file.endswith(".npy")]
         sorted_files = sorted(filtered_files,
-                              key=lambda s: (extract_scale_NPY(s)[0]),
+                              key=lambda s: (extract_scale_NPY(s)),
                               reverse=True)
         for f in sorted_files:
             velocityField = torch.from_numpy(np.load(os.path.join(workingDirectory, "results", f))).to(device=device)
@@ -316,7 +316,7 @@ def checkNonrigidInverse(device: str,workingDirectory: str,pts: Tensor,segmentat
         filtered_files = [file for file in files if
                           file.startswith("transformation_nonrigid") and file.endswith(".npy")]
         sorted_files = sorted(filtered_files,
-                              key=lambda s: (extract_scale_NPY(s)[0]),
+                              key=lambda s: (extract_scale_NPY(s)),
                               reverse=False)
         for f in sorted_files:
             velocityField = torch.from_numpy(np.load(os.path.join(workingDirectory, "results", f))).to(device=device)
